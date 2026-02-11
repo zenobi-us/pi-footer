@@ -1,107 +1,188 @@
-import type { FooterContextState } from "../types";
+/* eslint-disable no-unused-vars */
+import type { FooterContextState } from '../types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-/** The resolved context data a pipeline reads from at runtime. */
 export type PipelineContext = {
+  /* Stringified provider values intended for display rendering. */
   data: Record<string, string>;
+
+  /* Raw provider values used by transforms and argument references. */
   rawData: Record<string, unknown>;
 };
 
 export type TransformRecord = {
+  /* Transform registry id that executed (e.g. `humanise_percent`). */
   id: string;
+
+  /* Snapshot of text/value before the transform was applied. */
   input: { text: string; value: unknown };
+
+  /* Snapshot of text/value after the transform finished. */
   output: { text: string; value: unknown };
 };
 
 export type PipelineState = {
+  /* Current display text at this step of the pipeline. */
   text: string;
+
+  /* Current semantic value at this step of the pipeline. */
   value: unknown;
+
+  /* Source provider key that initiated this pipeline. */
   source: string;
+
+  /* Cross-transform scratchpad for advanced transform composition. */
   meta: Record<string, unknown>;
+
+  /* Execution history records appended after each successful transform. */
   transforms: TransformRecord[];
 };
 
 export type PipelineResult = {
+  /* Source provider key that initiated this pipeline. */
   source: string;
+
+  /* Provider raw value before any transforms ran. */
   initialValue: unknown;
+
+  /* Final semantic value after all transform steps complete. */
   finalValue: unknown;
+
+  /* Final display text emitted into template output. */
   text: string;
+
+  /* Ordered transform history for debugging/inspection. */
   transforms: TransformRecord[];
 };
 
-/**
- * A pipeline step receives immutable state + ambient context, returns new state.
- *
- * Convention:
- *  - Read `state.value` for semantic data (numbers, objects, etc.)
- *  - Read `state.text` for the current display string
- *  - Read `state.meta` for data left by earlier steps
- *  - Return a new state with updated text/value/meta
+/*
+ * A transform receives immutable pipeline state + ambient footer context,
+ * then returns the next pipeline state.
  */
-export type PipelineStep = (
-  state: Readonly<PipelineState>,
-  ctx: FooterContextState,
-  ...args: unknown[]
+export type PipelineTransform = (
+  ...args: [Readonly<PipelineState>, FooterContextState, ...unknown[]]
 ) => PipelineState;
 
-// ── Step descriptor (parsed from template) ───────────────────────────────────
+// ── Transform descriptor (parsed from template) ──────────────────────────────
 
-export type StepDescriptor = {
+export type TransformDescriptor = {
+  /* Transform name looked up in the runtime registry. */
   name: string;
-  args: StepArg[];
+
+  /* Parsed argument descriptors resolved at execution time. */
+  args: TransformArg[];
 };
 
-export type StepArg =
-  | { type: "literal"; value: unknown }
-  | { type: "ref"; key: string };
+export type TransformArg =
+  | {
+      /* Discriminator for literal argument variant. */
+      type: 'literal';
+
+      /* Parsed literal value (string/number/boolean/null). */
+      value: unknown;
+    }
+  | {
+      /* Discriminator for runtime context reference variant. */
+      type: 'ref';
+
+      /* Context key resolved from `rawData`/`data` at pipeline runtime. */
+      key: string;
+    };
+
+export type PipelineSource =
+  | {
+      /* Provider lookup source variant (`{model_name | ...}`). */
+      type: 'ref';
+
+      /* Provider key resolved from `templateCtx.rawData/data`. */
+      key: string;
+    }
+  | {
+      /* Literal source variant (`{"text" | ...}`). */
+      type: 'literal';
+
+      /* Inline literal text/value for pipeline bootstrap. */
+      value: string;
+    };
 
 // ── Pipeline class ───────────────────────────────────────────────────────────
 
-/**
- * A compiled pipeline for a single template expression `{key | step | step}`.
+/*
+ * Purpose:
+ * Represent one compiled pipeline expression: `{provider | transformA | transformB(...)}`.
  *
- * Construction is the parse/compile phase — done once per template.
- * `run()` is the execute phase — called per render with fresh context.
+ * Notes:
+ * - Construction happens at parse/compile time.
+ * - `run()` executes per render with fresh runtime context.
  */
 export class Pipeline {
-  constructor(
-    private source: string,
-    private steps: StepDescriptor[],
-    private registry: ReadonlyMap<string, PipelineStep>,
-  ) {}
+  private source: PipelineSource;
+  private transforms: TransformDescriptor[];
+  private registry: ReadonlyMap<string, PipelineTransform>;
 
+  /*
+   * Purpose:
+   * Store source descriptor, parsed transform chain, and transform registry reference.
+   *
+   * Inputs:
+   * - `source`: provider ref or inline literal source descriptor
+   * - `transforms`: parsed transform descriptors
+   * - `registry`: transform implementation map
+   */
+  constructor(
+    source: PipelineSource,
+    transforms: TransformDescriptor[],
+    registry: ReadonlyMap<string, PipelineTransform>
+  ) {
+    this.source = source;
+    this.transforms = transforms;
+    this.registry = registry;
+  }
+
+  /*
+   * Purpose:
+   * Execute the compiled pipeline against runtime context.
+   *
+   * Inputs:
+   * - `ctx`: footer runtime state
+   * - `templateCtx`: resolved provider data/rawData
+   *
+   * Returns:
+   * - `PipelineResult` including final text/value and transform trace
+   */
   run(ctx: FooterContextState, templateCtx: PipelineContext): PipelineResult {
-    const rawValue = templateCtx.rawData[this.source];
-    const text = templateCtx.data[this.source] ?? "";
+    const sourceKey = this.source.type === 'ref' ? this.source.key : this.source.value;
+    const rawValue =
+      this.source.type === 'ref' ? templateCtx.rawData[this.source.key] : this.source.value;
+    const text =
+      this.source.type === 'ref' ? templateCtx.data[this.source.key] ?? '' : this.source.value;
 
     let state: PipelineState = {
       text,
       value: rawValue,
-      source: this.source,
+      source: sourceKey,
       meta: {},
       transforms: [],
     };
 
-    for (const descriptor of this.steps) {
-      const step = this.registry.get(descriptor.name);
-      if (!step) {
-        console.warn(`Unknown pipeline step: ${descriptor.name}`);
+    for (const descriptor of this.transforms) {
+      const transform = this.registry.get(descriptor.name);
+      if (!transform) {
         continue;
       }
 
       const resolvedArgs = descriptor.args.map((arg) =>
-        arg.type === "literal"
+        arg.type === 'literal'
           ? arg.value
-          : (templateCtx.rawData[arg.key] ?? templateCtx.data[arg.key] ?? arg.key),
+          : templateCtx.rawData[arg.key] ?? templateCtx.data[arg.key] ?? arg.key
       );
 
       const input = { text: state.text, value: state.value };
 
       try {
-        state = step(state, ctx, ...resolvedArgs);
-      } catch (error) {
-        console.error(`Pipeline step ${descriptor.name} failed:`, error);
+        state = transform(state, ctx, ...resolvedArgs);
+      } catch {
         continue;
       }
 
@@ -119,7 +200,7 @@ export class Pipeline {
     }
 
     return {
-      source: this.source,
+      source: sourceKey,
       initialValue: rawValue,
       finalValue: state.value,
       text: state.text,
@@ -131,91 +212,119 @@ export class Pipeline {
 // ── Parsing ──────────────────────────────────────────────────────────────────
 
 type TemplateSegment =
-  | { type: "literal"; text: string }
-  | { type: "pipeline"; pipeline: Pipeline };
+  | {
+      /* Discriminator for literal string chunk. */
+      type: 'literal';
 
-/**
- * Parse a template string into segments of literal text and compiled pipelines.
+      /* Static text copied directly into final output. */
+      text: string;
+    }
+  | {
+      /* Discriminator for compiled pipeline chunk. */
+      type: 'pipeline';
+
+      /* Executable pipeline for one `{provider | transform...}` expression. */
+      pipeline: Pipeline;
+    };
+
+/*
+ * Purpose:
+ * Parse template text into literal segments and compiled pipeline segments.
  *
- * Template syntax:
- *   literal text {provider | step1('arg') | step2(ref_key)} more text
+ * Inputs:
+ * - `template`: source text containing `{provider | ...}` or `{"literal" | ...}` expressions
+ * - `registry`: transform map used by compiled pipeline instances
  *
- * Args:
- *   Quoted  → literal:  'accent', "hello", '200'
- *   Numeric → literal:  42, 3.14
- *   Boolean → literal:  true, false
- *   Bare    → context ref: model_context_window resolves against context at runtime
+ * Returns:
+ * - Ordered `TemplateSegment[]`
  */
 export function parseTemplate(
   template: string,
-  registry: ReadonlyMap<string, PipelineStep>,
+  registry: ReadonlyMap<string, PipelineTransform>
 ): TemplateSegment[] {
   const segments: TemplateSegment[] = [];
-  const re = /\{\s*([\w-]+)(?:\s*\|\s*([^}]+))?\s*\}/g;
+  const re = /\{\s*(?:"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'|([\w-]+))(?:\s*\|\s*([^}]+))?\s*\}/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
   while ((match = re.exec(template)) !== null) {
-    // Literal text before this match
     if (match.index > lastIndex) {
-      segments.push({ type: "literal", text: template.slice(lastIndex, match.index) });
+      segments.push({ type: 'literal', text: template.slice(lastIndex, match.index) });
     }
 
-    const source = match[1];
-    const filterChain = match[2];
-    const steps = filterChain ? parseFilterChain(filterChain) : [];
+    const doubleQuotedSource = match[1];
+    const singleQuotedSource = match[2];
+    const refSource = match[3];
+    const transformChain = match[4];
+    const transforms = transformChain ? parseTransformChain(transformChain) : [];
+
+    const source: PipelineSource =
+      doubleQuotedSource != null
+        ? { type: 'literal', value: unescapeQuotedLiteral(doubleQuotedSource) }
+        : singleQuotedSource != null
+          ? { type: 'literal', value: unescapeQuotedLiteral(singleQuotedSource) }
+          : { type: 'ref', key: refSource };
 
     segments.push({
-      type: "pipeline",
-      pipeline: new Pipeline(source, steps, registry),
+      type: 'pipeline',
+      pipeline: new Pipeline(source, transforms, registry),
     });
 
     lastIndex = re.lastIndex;
   }
 
-  // Trailing literal
   if (lastIndex < template.length) {
-    segments.push({ type: "literal", text: template.slice(lastIndex) });
+    segments.push({ type: 'literal', text: template.slice(lastIndex) });
   }
 
   return segments;
 }
 
-/**
- * Split a filter chain string on `|` respecting parentheses and quotes.
+/*
+ * Purpose:
+ * Parse a transform chain string split on top-level pipe operators.
  *
- *   "humanise_percent | fg('accent') | clamp(0, 100)"
- *   → [ {name:"humanise_percent", args:[]}, {name:"fg", args:[{type:"literal",value:"accent"}]}, ... ]
+ * Inputs:
+ * - `chain`: raw transform chain text
+ *
+ * Returns:
+ * - Parsed transform descriptors
  */
-function parseFilterChain(chain: string): StepDescriptor[] {
+function parseTransformChain(chain: string): TransformDescriptor[] {
   const parts = splitOnPipe(chain);
-  const steps: StepDescriptor[] = [];
+  const transforms: TransformDescriptor[] = [];
 
   for (const part of parts) {
     const trimmed = part.trim();
     if (!trimmed) continue;
 
-    const descriptor = parseStepDescriptor(trimmed);
-    if (descriptor) steps.push(descriptor);
+    const descriptor = parseTransformDescriptor(trimmed);
+    if (descriptor) transforms.push(descriptor);
   }
 
-  return steps;
+  return transforms;
 }
 
-/**
- * Split string on `|` that are not inside parentheses or quotes.
+/*
+ * Purpose:
+ * Split on top-level `|` while respecting quotes and parenthesis nesting.
+ *
+ * Inputs:
+ * - `input`: transform-chain source text
+ *
+ * Returns:
+ * - Pipe-separated parts safe for per-transform parsing
  */
 function splitOnPipe(input: string): string[] {
   const parts: string[] = [];
-  let current = "";
+  let current = '';
   let depth = 0;
   let quote: "'" | '"' | null = null;
 
   for (let i = 0; i < input.length; i++) {
     const ch = input[i];
 
-    // Quote tracking
-    if ((ch === "'" || ch === '"') && (i === 0 || input[i - 1] !== "\\")) {
+    if ((ch === "'" || ch === '"') && (i === 0 || input[i - 1] !== '\\')) {
       if (quote === ch) {
         quote = null;
       } else if (quote === null) {
@@ -225,14 +334,21 @@ function splitOnPipe(input: string): string[] {
       continue;
     }
 
-    // Paren tracking (outside quotes)
     if (quote === null) {
-      if (ch === "(") { depth++; current += ch; continue; }
-      if (ch === ")") { depth = Math.max(0, depth - 1); current += ch; continue; }
+      if (ch === '(') {
+        depth++;
+        current += ch;
+        continue;
+      }
+      if (ch === ')') {
+        depth = Math.max(0, depth - 1);
+        current += ch;
+        continue;
+      }
 
-      if (ch === "|" && depth === 0) {
+      if (ch === '|' && depth === 0) {
         parts.push(current);
-        current = "";
+        current = '';
         continue;
       }
     }
@@ -244,10 +360,17 @@ function splitOnPipe(input: string): string[] {
   return parts;
 }
 
-/**
- * Parse a single step expression: `name` or `name(arg1, arg2)`
+/*
+ * Purpose:
+ * Parse a single transform expression (`name` or `name(arg1, arg2, ...)`).
+ *
+ * Inputs:
+ * - `expr`: one transform expression string
+ *
+ * Returns:
+ * - Descriptor or `null` when syntax is invalid
  */
-function parseStepDescriptor(expr: string): StepDescriptor | null {
+function parseTransformDescriptor(expr: string): TransformDescriptor | null {
   const match = expr.match(/^([A-Za-z_][\w-]*)(?:\((.*)\))?$/s);
   if (!match) return null;
 
@@ -256,33 +379,44 @@ function parseStepDescriptor(expr: string): StepDescriptor | null {
 
   return {
     name,
-    args: argsStr != null ? parseStepArgs(argsStr) : [],
+    args: argsStr != null ? parseTransformArgs(argsStr) : [],
   };
 }
 
-/**
- * Parse step arguments, splitting on `,` respecting quotes.
+/*
+ * Purpose:
+ * Parse and classify argument list tokens into literal/ref descriptors.
  *
- * Quoted values → literal (string)
- * Numbers       → literal (number)
- * true/false    → literal (boolean)
- * null          → literal (null)
- * Bare words    → context ref (resolved at runtime)
+ * Inputs:
+ * - `argsStr`: raw argument list text from `name(...)`
+ *
+ * Returns:
+ * - Ordered transform arguments
  */
-function parseStepArgs(argsStr: string): StepArg[] {
+function parseTransformArgs(argsStr: string): TransformArg[] {
   const parts = splitOnComma(argsStr);
   return parts.map(classifyArg);
 }
 
+/*
+ * Purpose:
+ * Split on top-level commas while respecting quoted substrings.
+ *
+ * Inputs:
+ * - `input`: argument list text
+ *
+ * Returns:
+ * - Comma-separated argument tokens
+ */
 function splitOnComma(input: string): string[] {
   const parts: string[] = [];
-  let current = "";
+  let current = '';
   let quote: "'" | '"' | null = null;
 
   for (let i = 0; i < input.length; i++) {
     const ch = input[i];
 
-    if ((ch === "'" || ch === '"') && (i === 0 || input[i - 1] !== "\\")) {
+    if ((ch === "'" || ch === '"') && (i === 0 || input[i - 1] !== '\\')) {
       if (quote === ch) {
         quote = null;
       } else if (quote === null) {
@@ -292,9 +426,9 @@ function splitOnComma(input: string): string[] {
       continue;
     }
 
-    if (ch === "," && quote === null) {
+    if (ch === ',' && quote === null) {
       parts.push(current.trim());
-      current = "";
+      current = '';
       continue;
     }
 
@@ -305,43 +439,62 @@ function splitOnComma(input: string): string[] {
   return parts;
 }
 
-function classifyArg(raw: string): StepArg {
+/*
+ * Purpose:
+ * Classify one argument token as scalar literal or runtime context reference.
+ *
+ * Inputs:
+ * - `raw`: unclassified token text
+ *
+ * Returns:
+ * - `TransformArg` descriptor
+ */
+function classifyArg(raw: string): TransformArg {
   const trimmed = raw.trim();
 
-  // Quoted string → literal
   const quoted = trimmed.match(/^(["'])(.*)\1$/);
-  if (quoted) return { type: "literal", value: quoted[2] };
+  if (quoted) return { type: 'literal', value: quoted[2] };
 
-  // Boolean → literal
-  if (trimmed === "true") return { type: "literal", value: true };
-  if (trimmed === "false") return { type: "literal", value: false };
+  if (trimmed === 'true') return { type: 'literal', value: true };
+  if (trimmed === 'false') return { type: 'literal', value: false };
 
-  // Null → literal
-  if (trimmed === "null") return { type: "literal", value: null };
+  if (trimmed === 'null') return { type: 'literal', value: null };
 
-  // Number → literal
   const num = Number(trimmed);
   if (!Number.isNaN(num) && Number.isFinite(num) && trimmed.length > 0) {
-    return { type: "literal", value: num };
+    return { type: 'literal', value: num };
   }
 
-  // Bare word → context reference
-  return { type: "ref", key: trimmed };
+  return { type: 'ref', key: trimmed };
+}
+
+/* Unescape basic escaped quote/backslash sequences for quoted pipeline sources. */
+function unescapeQuotedLiteral(value: string): string {
+  return value.replace(/\\([\\"'])/g, '$1');
 }
 
 // ── Render helper ────────────────────────────────────────────────────────────
 
-/**
- * Execute pre-parsed template segments against a context.
+/*
+ * Purpose:
+ * Execute parsed template segments and concatenate final rendered output.
+ *
+ * Inputs:
+ * - `segments`: parsed literal/pipeline segment list
+ * - `ctx`: footer runtime state
+ * - `templateCtx`: resolved provider data/rawData
+ *
+ * Returns:
+ * - Final rendered string
  */
 export function renderSegments(
   segments: TemplateSegment[],
   ctx: FooterContextState,
-  templateCtx: PipelineContext,
+  templateCtx: PipelineContext
 ): string {
-  let result = "";
+  let result = '';
   for (const seg of segments) {
-    if (seg.type === "literal") {
+    if (seg.type === 'literal') {
       result += seg.text;
     } else {
       result += seg.pipeline.run(ctx, templateCtx).text;

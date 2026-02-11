@@ -1,5 +1,11 @@
-import { Footer } from "../footer.ts";
+import { Footer } from '../footer.ts';
 
-Footer.registerContextValue("cwd", (props) => {
-  return props.ctx.cwd.split("/").pop() || props.ctx.cwd;
+/* Provider: full current working directory path. */
+Footer.registerContextValue('path', (props) => {
+  return props.ctx.cwd;
+});
+
+/* Provider: basename of current working directory for compact footer display. */
+Footer.registerContextValue('cwd', (props) => {
+  return props.ctx.cwd.split('/').pop() || props.ctx.cwd;
 });

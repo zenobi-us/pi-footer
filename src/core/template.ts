@@ -1,94 +1,118 @@
-import {
-  ContextValueProvider,
-  ContextFilterProvider,
-  FooterContextState,
-} from "../types";
-import {
-  PipelineContext,
-  PipelineStep,
-  PipelineState,
-  parseTemplate,
-  renderSegments,
-} from "./pipeline";
+import { ContextValueProvider, FooterContextState } from '../types';
+import { PipelineContext, PipelineTransform, parseTemplate, renderSegments } from './pipeline';
 
 export type TemplateContext = PipelineContext & {
+  /*
+   * Runtime objects and APIs exposed to providers/transforms.
+   */
   state: FooterContextState;
 };
 
-export function stringifyProviderValue(
-  value: ReturnType<ContextValueProvider>,
-): string {
-  if (value == null) return "";
+/*
+ * Purpose:
+ * Convert provider output into a display-safe text string.
+ *
+ * Inputs:
+ * - `value`: provider return value (scalar, array, object, nullish)
+ *
+ * Returns:
+ * - Normalized string (objects omitted; scalar entries joined with a space)
+ */
+export function stringifyProviderValue(value: ReturnType<ContextValueProvider>): string {
+  if (value == null) return '';
 
   const entries = Array.isArray(value) ? value : [value];
 
   return entries
     .map((entry) => {
-      if (entry == null) return "";
-      if (typeof entry === "object") return "";
+      if (entry == null) return '';
+      if (typeof entry === 'object') return '';
       return String(entry).trim();
     })
     .filter((entry) => entry.length > 0)
-    .join(" ");
+    .join(' ');
 }
-
-/**
- * Wrap a legacy ContextFilterProvider as a PipelineStep.
- *
- * The adapter passes `state.value` (raw provider value) to the filter,
- * matching the original behavior where filters received rawData.
- */
-export function adaptFilter(filter: ContextFilterProvider): PipelineStep {
-  return (state: Readonly<PipelineState>, ctx: FooterContextState, ...args: unknown[]): PipelineState => {
-    const result = filter(ctx, state.value, ...args);
-    return { ...state, text: result };
-  };
-}
-
-// ── Compiled template cache ──────────────────────────────────────────────────
 
 type CompiledTemplate = ReturnType<typeof parseTemplate>;
 
+/*
+ * Purpose:
+ * Manage provider/transform registries, template compilation cache, and rendering.
+ */
 export class Template {
+  /*
+   * Public registry of provider functions keyed by placeholder name.
+   */
   providers = new Map<string, ContextValueProvider>();
-  steps = new Map<string, PipelineStep>();
 
+  /*
+   * Public registry of transform functions keyed by transform name.
+   */
+  transforms = new Map<string, PipelineTransform>();
+
+  /*
+   * Internal cache of parsed pipeline segments keyed by template source string.
+   */
   private compiledCache = new Map<string, CompiledTemplate>();
 
+  /*
+   * Purpose:
+   * Register or replace a context provider.
+   *
+   * Inputs:
+   * - `name`: provider key used in `{name}` templates
+   * - `provider`: runtime resolver function
+   */
   registerContextProvider(name: string, provider: ContextValueProvider): void {
     this.providers.set(name, provider);
   }
 
+  /*
+   * Purpose:
+   * Unregister a context provider.
+   *
+   * Inputs:
+   * - `name`: provider key
+   */
   unregisterContextProvider(name: string): void {
     this.providers.delete(name);
   }
 
-  /**
-   * Register a pipeline step (native).
+  /*
+   * Purpose:
+   * Register or replace a transform and invalidate compiled template cache.
+   *
+   * Inputs:
+   * - `name`: transform id used in pipeline expressions
+   * - `transform`: transform implementation
    */
-  registerStep(name: string, step: PipelineStep): void {
-    this.steps.set(name, step);
+  registerTransform(name: string, transform: PipelineTransform): void {
+    this.transforms.set(name, transform);
     this.compiledCache.clear();
   }
 
-  /**
-   * Register a legacy ContextFilterProvider, auto-wrapped as a PipelineStep.
+  /*
+   * Purpose:
+   * Unregister a transform and invalidate compiled template cache.
+   *
+   * Inputs:
+   * - `name`: transform id
    */
-  registerContextFilter(name: string, filter: ContextFilterProvider): void {
-    this.steps.set(name, adaptFilter(filter));
+  unregisterTransform(name: string): void {
+    this.transforms.delete(name);
     this.compiledCache.clear();
   }
 
-  unregisterStep(name: string): void {
-    this.steps.delete(name);
-    this.compiledCache.clear();
-  }
-
-  /** @deprecated Use unregisterStep */
-  unregisterContextFilter(name: string): void {
-    this.unregisterStep(name);
-  }
-
+  /*
+   * Purpose:
+   * Resolve every registered provider into a single render context snapshot.
+   *
+   * Inputs:
+   * - `state`: extension runtime state passed to providers
+   *
+   * Returns:
+   * - `TemplateContext` containing both stringified and raw provider values
+   */
   createContext(state: FooterContextState): TemplateContext {
     const data: Record<string, string> = {};
     const rawData: Record<string, unknown> = {};
@@ -108,15 +132,36 @@ export class Template {
     return { data, rawData, state };
   }
 
+  /*
+   * Purpose:
+   * Parse and cache a template string into executable segments.
+   *
+   * Inputs:
+   * - `template`: source template text
+   *
+   * Returns:
+   * - Parsed segment list (from cache when available)
+   */
   private compile(template: string): CompiledTemplate {
     const cached = this.compiledCache.get(template);
     if (cached) return cached;
 
-    const compiled = parseTemplate(template, this.steps);
+    const compiled = parseTemplate(template, this.transforms);
     this.compiledCache.set(template, compiled);
     return compiled;
   }
 
+  /*
+   * Purpose:
+   * Render a template string against a resolved context snapshot.
+   *
+   * Inputs:
+   * - `template`: source template text
+   * - `context`: resolved provider context
+   *
+   * Returns:
+   * - Rendered output string
+   */
   render(template: string, context: TemplateContext): string {
     const segments = this.compile(template);
     return renderSegments(segments, context.state, context);

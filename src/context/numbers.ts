@@ -1,10 +1,11 @@
-import { Footer } from "../footer.ts";
-import type { PipelineStep } from "../core/pipeline.ts";
+import { Footer } from '../footer.ts';
+import type { PipelineTransform } from '../core/pipeline.ts';
 
-const humanise_time: PipelineStep = (state) => {
+/* Transform: convert seconds into compact d/h/m/s representation. */
+const humanise_time: PipelineTransform = (state) => {
   const value = state.value;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return { ...state, text: "--" };
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { ...state, text: '--' };
   }
 
   const seconds = Math.max(0, Math.round(value));
@@ -21,63 +22,68 @@ const humanise_time: PipelineStep = (state) => {
   return { ...state, text };
 };
 
-const humanise_percent: PipelineStep = (state) => {
+/* Transform: normalize ratio/percent values and emit rounded percentage text. */
+const humanise_percent: PipelineTransform = (state) => {
   const value = state.value;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return { ...state, text: "--" };
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { ...state, text: '--' };
   }
 
-  // Accept either ratio (0..1) or percentage (0..100+)
   const percent = value <= 1 ? value * 100 : value;
   const rounded = Math.max(0, Math.round(percent));
 
   return { ...state, value: rounded, text: `${rounded}%` };
 };
 
-const humanise_amount: PipelineStep = (state) => {
+/* Transform: round numeric value to nearest integer and output plain digits. */
+const humanise_amount: PipelineTransform = (state) => {
   const value = state.value;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return { ...state, text: "--" };
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { ...state, text: '--' };
   }
 
   return { ...state, text: Math.round(value).toString() };
 };
 
-const humanise_number: PipelineStep = (state) => {
+/* Transform: round numeric value and format using locale separators. */
+const humanise_number: PipelineTransform = (state) => {
   const value = state.value;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return { ...state, text: "--" };
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { ...state, text: '--' };
   }
 
   return { ...state, text: Math.round(value).toLocaleString() };
 };
 
-const round: PipelineStep = (state, _ctx, decimals = 0) => {
+/* Transform: format numeric value using fixed decimal places. */
+const round: PipelineTransform = (state, _ctx, decimals = 0) => {
   const value = state.value;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return { ...state, text: "--" };
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { ...state, text: '--' };
   }
 
-  const d = typeof decimals === "number" ? decimals : 0;
+  const d = typeof decimals === 'number' ? decimals : 0;
   return { ...state, text: value.toFixed(d) };
 };
 
-const clamp: PipelineStep = (state, _ctx, min = 0, max = 100) => {
+/* Transform: clamp numeric value into [min, max] range and update value + text. */
+const clamp: PipelineTransform = (state, _ctx, min = 0, max = 100) => {
   const value = state.value;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return { ...state, text: "--" };
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { ...state, text: '--' };
   }
 
-  const lo = typeof min === "number" ? min : 0;
-  const hi = typeof max === "number" ? max : 100;
+  const lo = typeof min === 'number' ? min : 0;
+  const hi = typeof max === 'number' ? max : 100;
   const clamped = Math.max(lo, Math.min(hi, value));
   return { ...state, text: clamped.toString(), value: clamped };
 };
 
-Footer.registerStep("humanise_time", humanise_time);
-Footer.registerStep("humanise_percent", humanise_percent);
-Footer.registerStep("humanise_percentage", humanise_percent);
-Footer.registerStep("humanise_amount", humanise_amount);
-Footer.registerStep("humanise_number", humanise_number);
-Footer.registerStep("round", round);
-Footer.registerStep("clamp", clamp);
+/* Register built-in numeric formatting transforms. */
+Footer.registerContextTransform('humanise_time', humanise_time);
+Footer.registerContextTransform('humanise_percent', humanise_percent);
+Footer.registerContextTransform('humanise_percentage', humanise_percent);
+Footer.registerContextTransform('humanise_amount', humanise_amount);
+Footer.registerContextTransform('humanise_number', humanise_number);
+Footer.registerContextTransform('round', round);
+Footer.registerContextTransform('clamp', clamp);
