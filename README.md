@@ -4,8 +4,10 @@ Composable footer for `pi` with provider-driven data and a compiled pipeline ren
 
 ```json
 [
-  "{model_provider}.{model_name} [{model_context_window}:{model_context_used | humanise_percent | context_used_color}]",
-  { items: ["[{git_worktree_name}:{git_branch_name}]"], align: "right" }
+  [
+    "{model_provider}.{model_name} [{model_context_window}:{model_context_used | humanise_percent | context_used_color}]",
+    { "items": ["[{git_worktree_name}:{git_branch_name}]"], "align": "right" }
+  ]
 ]
 ```
 
