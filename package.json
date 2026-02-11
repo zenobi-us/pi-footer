@@ -1,6 +1,6 @@
 {
   "name": "@zenobius/pi-footer",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "A customisable footer component for the Pi Coding Agent interface.",
   "author": {
     "name": "Zenobius Jiricek",
