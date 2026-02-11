@@ -1,6 +1,9 @@
 import { Footer } from '../footer.ts';
 import type { PipelineTransform } from '../core/pipeline.ts';
-import { ThemeColor } from '@mariozechner/pi-coding-agent';
+import type { Theme } from '@mariozechner/pi-coding-agent';
+
+export type ThemeFg = Parameters<Theme['fg']>[0];
+export type ThemeBg = Parameters<Theme['bg']>[0];
 
 /* Transform: apply foreground theme color to current text. */
 const fg: PipelineTransform = (state, ctx, colorName) => {
@@ -9,7 +12,7 @@ const fg: PipelineTransform = (state, ctx, colorName) => {
   if (typeof colorName !== 'string' || !colorName) return { ...state };
 
   try {
-    const text = ctx.theme.fg(colorName as ThemeColor, state.text);
+    const text = ctx.theme.fg(colorName as ThemeFg, state.text);
     return {
       ...state,
       transforms: [
@@ -34,7 +37,7 @@ const bg: PipelineTransform = (state, ctx, colorName) => {
   if (typeof colorName !== 'string' || !colorName) return { ...state };
 
   try {
-    return { ...state, text: ctx.theme.bg(colorName as ThemeColor, state.text) };
+    return { ...state, text: ctx.theme.bg(colorName as ThemeBg, state.text) };
   } catch {
     return { ...state };
   }

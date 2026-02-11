@@ -90,6 +90,22 @@ export type TransformArg =
       key: string;
     };
 
+export type PipelineSource =
+  | {
+      /* Provider lookup source variant (`{model_name | ...}`). */
+      type: 'ref';
+
+      /* Provider key resolved from `templateCtx.rawData/data`. */
+      key: string;
+    }
+  | {
+      /* Literal source variant (`{"text" | ...}`). */
+      type: 'literal';
+
+      /* Inline literal text/value for pipeline bootstrap. */
+      value: string;
+    };
+
 // ── Pipeline class ───────────────────────────────────────────────────────────
 
 /*
@@ -101,21 +117,21 @@ export type TransformArg =
  * - `run()` executes per render with fresh runtime context.
  */
 export class Pipeline {
-  private source: string;
+  private source: PipelineSource;
   private transforms: TransformDescriptor[];
   private registry: ReadonlyMap<string, PipelineTransform>;
 
   /*
    * Purpose:
-   * Store source key, parsed transform chain, and transform registry reference.
+   * Store source descriptor, parsed transform chain, and transform registry reference.
    *
    * Inputs:
-   * - `source`: provider key
+   * - `source`: provider ref or inline literal source descriptor
    * - `transforms`: parsed transform descriptors
    * - `registry`: transform implementation map
    */
   constructor(
-    source: string,
+    source: PipelineSource,
     transforms: TransformDescriptor[],
     registry: ReadonlyMap<string, PipelineTransform>
   ) {
@@ -136,13 +152,16 @@ export class Pipeline {
    * - `PipelineResult` including final text/value and transform trace
    */
   run(ctx: FooterContextState, templateCtx: PipelineContext): PipelineResult {
-    const rawValue = templateCtx.rawData[this.source];
-    const text = templateCtx.data[this.source] ?? '';
+    const sourceKey = this.source.type === 'ref' ? this.source.key : this.source.value;
+    const rawValue =
+      this.source.type === 'ref' ? templateCtx.rawData[this.source.key] : this.source.value;
+    const text =
+      this.source.type === 'ref' ? templateCtx.data[this.source.key] ?? '' : this.source.value;
 
     let state: PipelineState = {
       text,
       value: rawValue,
-      source: this.source,
+      source: sourceKey,
       meta: {},
       transforms: [],
     };
@@ -181,7 +200,7 @@ export class Pipeline {
     }
 
     return {
-      source: this.source,
+      source: sourceKey,
       initialValue: rawValue,
       finalValue: state.value,
       text: state.text,
@@ -213,7 +232,7 @@ type TemplateSegment =
  * Parse template text into literal segments and compiled pipeline segments.
  *
  * Inputs:
- * - `template`: source text containing `{provider | ...}` expressions
+ * - `template`: source text containing `{provider | ...}` or `{"literal" | ...}` expressions
  * - `registry`: transform map used by compiled pipeline instances
  *
  * Returns:
@@ -224,7 +243,7 @@ export function parseTemplate(
   registry: ReadonlyMap<string, PipelineTransform>
 ): TemplateSegment[] {
   const segments: TemplateSegment[] = [];
-  const re = /\{\s*([\w-]+)(?:\s*\|\s*([^}]+))?\s*\}/g;
+  const re = /\{\s*(?:"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'|([\w-]+))(?:\s*\|\s*([^}]+))?\s*\}/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -233,9 +252,18 @@ export function parseTemplate(
       segments.push({ type: 'literal', text: template.slice(lastIndex, match.index) });
     }
 
-    const source = match[1];
-    const transformChain = match[2];
+    const doubleQuotedSource = match[1];
+    const singleQuotedSource = match[2];
+    const refSource = match[3];
+    const transformChain = match[4];
     const transforms = transformChain ? parseTransformChain(transformChain) : [];
+
+    const source: PipelineSource =
+      doubleQuotedSource != null
+        ? { type: 'literal', value: unescapeQuotedLiteral(doubleQuotedSource) }
+        : singleQuotedSource != null
+          ? { type: 'literal', value: unescapeQuotedLiteral(singleQuotedSource) }
+          : { type: 'ref', key: refSource };
 
     segments.push({
       type: 'pipeline',
@@ -438,6 +466,11 @@ function classifyArg(raw: string): TransformArg {
   }
 
   return { type: 'ref', key: trimmed };
+}
+
+/* Unescape basic escaped quote/backslash sequences for quoted pipeline sources. */
+function unescapeQuotedLiteral(value: string): string {
+  return value.replace(/\\([\\"'])/g, '$1');
 }
 
 // ── Render helper ────────────────────────────────────────────────────────────

@@ -248,10 +248,12 @@ const thinking_level_icons: PipelineTransform = (state, _ctx, style?) => {
           max: '++++',
         }
       : {
-          minimal: '◌',
+          off: '◌',
+          minimal: '○',
           low: '◔',
           medium: '◑',
           high: '◕',
+          xhigh: '',
           max: '●',
         };
 

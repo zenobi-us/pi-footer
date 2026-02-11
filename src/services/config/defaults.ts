@@ -10,17 +10,19 @@ import { FooterTemplate } from '../../types';
  */
 export const DEFAULT_TEMPLATE: FooterTemplate = [
   [
-    { items: ['[{git_worktree_name}:{git_branch_name}]'] },
+    '{path | fg("muted")}',
+    '{git_branch_name | fg("accent")}',
+    '{"words" | fg("error")}',
     {
       items: [
-        '{model_provider}.{model_name} [{model_context_window}:{model_context_used | humanise_percent | context_used_color}]',
+        "🧠 {model_thinking_level | thinking_level_icons('unicode')}",
+        '{model_provider | fg("accent")}',
+        '{model_name | fg("accent")}',
+        '{model_context_window}',
+        '{model_context_used | humanise_percent(100) | context_used_color}',
       ],
-      align: 'right',
-    },
-  ],
-  [
-    {
-      items: ["🧠 {model_thinking_level | thinking_level_icons('ascii')}"],
+      // with emdot
+      separator: ' · ',
       align: 'right',
     },
   ],

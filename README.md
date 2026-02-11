@@ -69,10 +69,17 @@ Pipelines are parsed once (cached by template string) and executed each render.
 {provider_key}
 ```
 
+Literal sources are also supported:
+
+```txt
+{"static text"}
+```
+
 ### Value transforms (pipelines)
 
 ```txt
 {model_context_used | humanise_percent | context_used_color}
+{"words" | fg("error")}
 ```
 
 ### Args: literal vs context reference
