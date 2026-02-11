@@ -1,5 +1,5 @@
 import { Footer } from '../footer.ts';
-import type { PipelineStep } from '../core/pipeline.ts';
+import type { PipelineTransform } from '../core/pipeline.ts';
 import { ThemeColor } from '@mariozechner/pi-coding-agent';
 
 /**
@@ -10,7 +10,7 @@ import { ThemeColor } from '@mariozechner/pi-coding-agent';
  *   {model_name | fg('success')}
  *   {cwd | fg('muted')}
  */
-const fg: PipelineStep = (state, ctx, colorName) => {
+const fg: PipelineTransform = (state, ctx, colorName) => {
   if (!state.text) return { ...state };
 
   if (typeof colorName !== 'string' || !colorName) return { ...state };
@@ -41,7 +41,7 @@ const fg: PipelineStep = (state, ctx, colorName) => {
  *   {model_name | bg('selectedBg')}
  *   {git_branch_name | bg('toolSuccessBg')}
  */
-const bg: PipelineStep = (state, ctx, colorName) => {
+const bg: PipelineTransform = (state, ctx, colorName) => {
   if (!state.text) return { ...state };
 
   if (typeof colorName !== 'string' || !colorName) return { ...state };
@@ -53,5 +53,5 @@ const bg: PipelineStep = (state, ctx, colorName) => {
   }
 };
 
-Footer.registerContextFilter('fg', fg);
-Footer.registerContextFilter('bg', bg);
+Footer.registerContextTransform('fg', fg);
+Footer.registerContextTransform('bg', bg);

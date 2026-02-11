@@ -2,18 +2,33 @@
 
 Composable footer for `pi` with provider-driven data and a compiled pipeline renderer.
 
+```json
+[
+  "{model_provider}.{model_name} [{model_context_window}:{model_context_used | humanise_percent | context_used_color}]",
+  { items: ["[{git_worktree_name}:{git_branch_name}]"], align: "right" }
+]
+```
+
+renders: 
+
+```txt
+gpt-4.0 [200k:64%]             [my-worktree:main]
+```
+
+
 ## What this extension provides
 
-- Global `Footer` registry
-- Context **providers** (data sources)
-- Pipeline **steps** (transform/color/format stages)
-- Template-based layout with left/right alignment + flex growth
+- Template based footer rendering with dynamic data from context providers.
+- Context **providers** (data sources) that resolve values from the current state (e.g. model, git, time)
+- Context transforms that reshape provider values (e.g. humanise, colorize)
+- left/right alignment + flex growth
 - Built-in providers for model, git, cwd, time, and usage trackers
 - Debug command for inspecting pipeline execution
+- api to register custom providers and transforms from other extensions
 
 ---
 
-## Architecture (provider → step → step)
+## Architecture (provider → transform → transform)
 
 Each `{ ... }` expression in a template is compiled into a pipeline.
 
@@ -26,8 +41,8 @@ Example:
 Execution flow:
 
 1. `model_context_used` provider resolves raw value (e.g. `64`)
-2. `humanise_percent` step updates text to `"64%"`
-3. `context_used_color` step applies theme color based on numeric value
+2. `humanise_percent` updates text to `"64%"`
+3. `context_used_color` applies theme color based on numeric value
 4. Pipeline returns final text
 
 Pipelines are parsed once (cached by template string) and executed each render.
@@ -40,10 +55,9 @@ Pipelines are parsed once (cached by template string) and executed each render.
 
 ```txt
 {provider_key}
-{provider_key | step_one | step_two('arg')}
 ```
 
-### Chained steps
+### Value transforms (pipelines)
 
 ```txt
 {model_context_used | humanise_percent | context_used_color}
@@ -91,7 +105,7 @@ From tracker integration (auto-detected + per-platform), including:
 
 ---
 
-## Built-in pipeline steps
+## Built-in transforms
 
 - `humanise_time`
 - `humanise_percent` (alias: `humanise_percentage`)
@@ -114,6 +128,11 @@ From tracker integration (auto-detected + per-platform), including:
 ---
 
 ## Template layout config
+
+- A template is an array of rows.
+- Each row can be a string, an array of strings, an array of template objects, or a mix. 
+- Template objects support additional layout config (alignment, separator, flex growth).
+- Before rendering, all strings are parsed into template objects (caching by string value) and compiled into pipelines. They align to the left by default.
 
 Set in `services/config/defaults.ts` or override via `Config.template`.
 
@@ -145,19 +164,29 @@ Supported object item fields:
 ## Extension API usage
 
 ```ts
-import piFooterExtension, { Footer } from "./pi-footer/index.ts";
+import { Footer } from "@zenobi-us/pi-footer";
 
-export default function (pi) {
-  piFooterExtension(pi);
+export default function YourCustomPiValuesExtension (pi) {
 
   // Add provider
   Footer.registerContextValue("custom_value", ({ ctx }) => ctx.cwd.length);
 
-  // Add pipeline step
-  Footer.registerStep("custom_format", (state) => ({
-    ...state,
-    text: `len=${state.value}`,
-  }));
+  // Add pipeline transform
+  Footer.registerContextTransform("custom_format", (state) => {
+    if (state.source !== "custom_value") return state;
+
+    const value = `len=${state.value}`;
+
+    return ({
+      ...state,
+      transforms: [...state.transforms, {
+        id: "custom_format",
+        input: state.value,
+        output: value,
+      }],
+      text: value
+    }))
+  };
 }
 ```
 
@@ -165,12 +194,11 @@ export default function (pi) {
 
 ## Commands
 
-- `/usage-store` – list usage tracker entries
-- `/context-providers` – list registered providers + steps
-- `/pipeline-debug {expr}` – inspect pipeline transform history
+- `/pi-footer providers` – list registered providers + transforms with metadata (source, dependencies, etc)
+- `/pi-footer debug-transform {expr}` – inspect pipeline transform history
 
 Example:
 
 ```txt
-/pipeline-debug {model_context_used | humanise_percent | context_used_color}
+/pi-footer debug-transform {model_context_used | humanise_percent | context_used_color}
 ```

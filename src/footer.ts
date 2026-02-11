@@ -79,8 +79,8 @@ function createFooter(): FooterInstance & { template: Template } {
     registerContextValue(name, provider) {
       template.registerContextProvider(name, provider);
     },
-    registerContextFilter(name, step) {
-      template.registerStep(name, step);
+    registerContextTransform(name, transform) {
+      template.registerTransform(name, transform);
     },
     render(pi, ctx, theme, width, options) {
       if (!options.template) {

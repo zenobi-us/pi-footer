@@ -1,5 +1,5 @@
 import { ContextValueProvider, FooterContextState } from '../types';
-import { PipelineContext, PipelineStep, parseTemplate, renderSegments } from './pipeline';
+import { PipelineContext, PipelineTransform, parseTemplate, renderSegments } from './pipeline';
 
 export type TemplateContext = PipelineContext & {
   state: FooterContextState;
@@ -20,13 +20,11 @@ export function stringifyProviderValue(value: ReturnType<ContextValueProvider>):
     .join(' ');
 }
 
-// ── Compiled template cache ──────────────────────────────────────────────────
-
 type CompiledTemplate = ReturnType<typeof parseTemplate>;
 
 export class Template {
   providers = new Map<string, ContextValueProvider>();
-  steps = new Map<string, PipelineStep>();
+  transforms = new Map<string, PipelineTransform>();
 
   private compiledCache = new Map<string, CompiledTemplate>();
 
@@ -38,21 +36,14 @@ export class Template {
     this.providers.delete(name);
   }
 
-  /**
-   * Register a pipeline step (native).
-   */
-  registerStep(name: string, step: PipelineStep): void {
-    this.steps.set(name, step);
-    this.compiledCache.clear();
-  }
-  unregisterStep(name: string): void {
-    this.steps.delete(name);
+  registerTransform(name: string, transform: PipelineTransform): void {
+    this.transforms.set(name, transform);
     this.compiledCache.clear();
   }
 
-  /** @deprecated Use unregisterStep */
-  unregisterContextFilter(name: string): void {
-    this.unregisterStep(name);
+  unregisterTransform(name: string): void {
+    this.transforms.delete(name);
+    this.compiledCache.clear();
   }
 
   createContext(state: FooterContextState): TemplateContext {
@@ -78,7 +69,7 @@ export class Template {
     const cached = this.compiledCache.get(template);
     if (cached) return cached;
 
-    const compiled = parseTemplate(template, this.steps);
+    const compiled = parseTemplate(template, this.transforms);
     this.compiledCache.set(template, compiled);
     return compiled;
   }

@@ -41,11 +41,10 @@ export function registerPipelineDebugCommand(pi: ExtensionAPI, footer: FooterIns
 
       if (!expression.trim()) {
         const usage =
-          'Usage: /pipeline-debug {provider | step1 | step2(arg)}\n' +
+          'Usage: /pipeline-debug {provider | transform1 | transform2(arg)}\n' +
           'Example: /pipeline-debug {model_context_used | humanise_percent | context_used_color}';
 
         if (!ctx.hasUI) {
-          console.log(usage);
           return;
         }
 
@@ -56,7 +55,7 @@ export function registerPipelineDebugCommand(pi: ExtensionAPI, footer: FooterIns
       const template = ensureBraces(expression);
       const footerState = { pi, ctx, theme: ctx.ui.theme };
       const templateCtx = ft.template.createContext(footerState);
-      const segments = parseTemplate(template, ft.template.steps) as Array<
+      const segments = parseTemplate(template, ft.template.transforms) as Array<
         { type: 'literal'; text: string } | { type: 'pipeline'; pipeline: { run: Function } }
       >;
 
@@ -95,16 +94,16 @@ export function registerPipelineDebugCommand(pi: ExtensionAPI, footer: FooterIns
         lines.push(`  finalText:    ${JSON.stringify(result.text)}`);
 
         if (result.transforms.length === 0) {
-          lines.push('  steps: (none)');
+          lines.push('  transforms: (none)');
         } else {
-          lines.push('  steps:');
-          for (const [index, step] of result.transforms.entries()) {
-            lines.push(`    ${index + 1}. ${step.id}`);
+          lines.push('  transforms:');
+          for (const [index, transform] of result.transforms.entries()) {
+            lines.push(`    ${index + 1}. ${transform.id}`);
             lines.push(
-              `       in : text=${JSON.stringify(step.input.text)} value=${formatValue(step.input.value)}`
+              `       in : text=${JSON.stringify(transform.input.text)} value=${formatValue(transform.input.value)}`
             );
             lines.push(
-              `       out: text=${JSON.stringify(step.output.text)} value=${formatValue(step.output.value)}`
+              `       out: text=${JSON.stringify(transform.output.text)} value=${formatValue(transform.output.value)}`
             );
           }
         }
@@ -116,7 +115,6 @@ export function registerPipelineDebugCommand(pi: ExtensionAPI, footer: FooterIns
       const output = lines.join('\n');
 
       if (!ctx.hasUI) {
-        console.log(output);
         return;
       }
 

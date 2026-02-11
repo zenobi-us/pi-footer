@@ -1,5 +1,6 @@
+/* eslint-disable no-unused-vars */
 import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
-import type { PipelineStep } from './core/pipeline';
+import type { PipelineTransform } from './core/pipeline';
 
 export type FooterTemplateObjectItemBase = {
   flexGrow?: boolean;
@@ -31,31 +32,26 @@ export type FooterContextState = {
   theme: ExtensionContext['ui']['theme'];
 };
 
-/**
- * @deprecated Use PipelineStep from core/pipeline.ts instead.
- * Kept for backwards compatibility with legacy filter registration.
- */
-export type ContextFilterProvider<A = any> = (
-  state: FooterContextState,
-  value: unknown,
-  ...args: A[]
+export type ContextTransformProvider<A = unknown> = (
+  ...args: [FooterContextState, unknown, ...A[]]
 ) => string;
 
 export type ContextValueProvider = (
-  state: FooterContextState
+  ...args: [FooterContextState]
 ) => FooterContextValue | FooterContextValue[];
 
 export interface FooterInstance {
-  render(
-    pi: ExtensionAPI,
-    ctx: ExtensionContext,
-    theme: ExtensionContext['ui']['theme'],
-    width: number,
-    options: {
-      template?: FooterTemplate;
-    }
-  ): string[];
-  registerContextValue(name: string, provider: ContextValueProvider): void;
-  /** Register a native pipeline step. */
-  registerContextFilter(name: string, step: PipelineStep): void;
+  render: (
+    ...args: [
+      ExtensionAPI,
+      ExtensionContext,
+      ExtensionContext['ui']['theme'],
+      number,
+      {
+        template?: FooterTemplate;
+      },
+    ]
+  ) => string[];
+  registerContextValue: (...args: [string, ContextValueProvider]) => void;
+  registerContextTransform: (...args: [string, PipelineTransform]) => void;
 }

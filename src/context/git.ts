@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { basename } from 'node:path';
-import type { PipelineStep } from '../core/pipeline.ts';
+import type { PipelineTransform } from '../core/pipeline.ts';
 import { truncate } from '../core/strings.ts';
 import { Footer } from '../footer.ts';
 import type { ContextValueProvider } from '../types.ts';
@@ -179,7 +179,7 @@ function resolveGitStatusStyle(styleArg: unknown): GitStatusIconStyle {
   return GIT_STATUS_STYLES.ascii;
 }
 
-const git_status_icons: PipelineStep = (state, _ctx, styleArg?) => {
+const git_status_icons: PipelineTransform = (state, _ctx, styleArg?) => {
   const value = state.value;
   if (!isGitStatus(value)) return { ...state, text: '--' };
 
@@ -226,4 +226,4 @@ Footer.registerContextValue('git_worktree_name', gitWorktreeNameProvider);
 Footer.registerContextValue('git_status', gitStatusProvider);
 Footer.registerContextValue('recent_commits', recentCommitsProvider);
 
-Footer.registerContextFilter('git_status_icons', git_status_icons);
+Footer.registerContextTransform('git_status_icons', git_status_icons);

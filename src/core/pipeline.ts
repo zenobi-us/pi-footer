@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import type { FooterContextState } from '../types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -31,49 +32,47 @@ export type PipelineResult = {
 };
 
 /**
- * A pipeline step receives immutable state + ambient context, returns new state.
+ * A pipeline transform receives immutable state + ambient context, returns new state.
  *
  * Convention:
  *  - Read `state.value` for semantic data (numbers, objects, etc.)
  *  - Read `state.text` for the current display string
- *  - Read `state.meta` for data left by earlier steps
+ *  - Read `state.meta` for data left by earlier transforms
  *  - Return a new state with updated text/value/meta
  */
-export type PipelineStep = (
-  state: Readonly<PipelineState>,
-  ctx: FooterContextState,
-  ...args: unknown[]
+export type PipelineTransform = (
+  ...args: [Readonly<PipelineState>, FooterContextState, ...unknown[]]
 ) => PipelineState;
 
-// ── Step descriptor (parsed from template) ───────────────────────────────────
+// ── Transform descriptor (parsed from template) ──────────────────────────────
 
-export type StepDescriptor = {
+export type TransformDescriptor = {
   name: string;
-  args: StepArg[];
+  args: TransformArg[];
 };
 
-export type StepArg = { type: 'literal'; value: unknown } | { type: 'ref'; key: string };
+export type TransformArg = { type: 'literal'; value: unknown } | { type: 'ref'; key: string };
 
 // ── Pipeline class ───────────────────────────────────────────────────────────
 
 /**
- * A compiled pipeline for a single template expression `{key | step | step}`.
+ * A compiled pipeline for a single template expression `{key | transform | transform}`.
  *
  * Construction is the parse/compile phase — done once per template.
  * `run()` is the execute phase — called per render with fresh context.
  */
 export class Pipeline {
   private source: string;
-  private steps: StepDescriptor[];
-  private registry: ReadonlyMap<string, PipelineStep>;
+  private transforms: TransformDescriptor[];
+  private registry: ReadonlyMap<string, PipelineTransform>;
 
   constructor(
     source: string,
-    steps: StepDescriptor[],
-    registry: ReadonlyMap<string, PipelineStep>
+    transforms: TransformDescriptor[],
+    registry: ReadonlyMap<string, PipelineTransform>
   ) {
     this.source = source;
-    this.steps = steps;
+    this.transforms = transforms;
     this.registry = registry;
   }
 
@@ -89,9 +88,9 @@ export class Pipeline {
       transforms: [],
     };
 
-    for (const descriptor of this.steps) {
-      const step = this.registry.get(descriptor.name);
-      if (!step) {
+    for (const descriptor of this.transforms) {
+      const transform = this.registry.get(descriptor.name);
+      if (!transform) {
         continue;
       }
 
@@ -104,7 +103,7 @@ export class Pipeline {
       const input = { text: state.text, value: state.value };
 
       try {
-        state = step(state, ctx, ...resolvedArgs);
+        state = transform(state, ctx, ...resolvedArgs);
       } catch {
         continue;
       }
@@ -140,7 +139,7 @@ type TemplateSegment = { type: 'literal'; text: string } | { type: 'pipeline'; p
  * Parse a template string into segments of literal text and compiled pipelines.
  *
  * Template syntax:
- *   literal text {provider | step1('arg') | step2(ref_key)} more text
+ *   literal text {provider | transform1('arg') | transform2(ref_key)} more text
  *
  * Args:
  *   Quoted  → literal:  'accent', "hello", '200'
@@ -150,7 +149,7 @@ type TemplateSegment = { type: 'literal'; text: string } | { type: 'pipeline'; p
  */
 export function parseTemplate(
   template: string,
-  registry: ReadonlyMap<string, PipelineStep>
+  registry: ReadonlyMap<string, PipelineTransform>
 ): TemplateSegment[] {
   const segments: TemplateSegment[] = [];
   const re = /\{\s*([\w-]+)(?:\s*\|\s*([^}]+))?\s*\}/g;
@@ -164,12 +163,12 @@ export function parseTemplate(
     }
 
     const source = match[1];
-    const filterChain = match[2];
-    const steps = filterChain ? parseFilterChain(filterChain) : [];
+    const transformChain = match[2];
+    const transforms = transformChain ? parseTransformChain(transformChain) : [];
 
     segments.push({
       type: 'pipeline',
-      pipeline: new Pipeline(source, steps, registry),
+      pipeline: new Pipeline(source, transforms, registry),
     });
 
     lastIndex = re.lastIndex;
@@ -184,24 +183,24 @@ export function parseTemplate(
 }
 
 /**
- * Split a filter chain string on `|` respecting parentheses and quotes.
+ * Split a transform chain string on `|` respecting parentheses and quotes.
  *
  *   "humanise_percent | fg('accent') | clamp(0, 100)"
  *   → [ {name:"humanise_percent", args:[]}, {name:"fg", args:[{type:"literal",value:"accent"}]}, ... ]
  */
-function parseFilterChain(chain: string): StepDescriptor[] {
+function parseTransformChain(chain: string): TransformDescriptor[] {
   const parts = splitOnPipe(chain);
-  const steps: StepDescriptor[] = [];
+  const transforms: TransformDescriptor[] = [];
 
   for (const part of parts) {
     const trimmed = part.trim();
     if (!trimmed) continue;
 
-    const descriptor = parseStepDescriptor(trimmed);
-    if (descriptor) steps.push(descriptor);
+    const descriptor = parseTransformDescriptor(trimmed);
+    if (descriptor) transforms.push(descriptor);
   }
 
-  return steps;
+  return transforms;
 }
 
 /**
@@ -255,9 +254,9 @@ function splitOnPipe(input: string): string[] {
 }
 
 /**
- * Parse a single step expression: `name` or `name(arg1, arg2)`
+ * Parse a single transform expression: `name` or `name(arg1, arg2)`
  */
-function parseStepDescriptor(expr: string): StepDescriptor | null {
+function parseTransformDescriptor(expr: string): TransformDescriptor | null {
   const match = expr.match(/^([A-Za-z_][\w-]*)(?:\((.*)\))?$/s);
   if (!match) return null;
 
@@ -266,12 +265,12 @@ function parseStepDescriptor(expr: string): StepDescriptor | null {
 
   return {
     name,
-    args: argsStr != null ? parseStepArgs(argsStr) : [],
+    args: argsStr != null ? parseTransformArgs(argsStr) : [],
   };
 }
 
 /**
- * Parse step arguments, splitting on `,` respecting quotes.
+ * Parse transform arguments, splitting on `,` respecting quotes.
  *
  * Quoted values → literal (string)
  * Numbers       → literal (number)
@@ -279,7 +278,7 @@ function parseStepDescriptor(expr: string): StepDescriptor | null {
  * null          → literal (null)
  * Bare words    → context ref (resolved at runtime)
  */
-function parseStepArgs(argsStr: string): StepArg[] {
+function parseTransformArgs(argsStr: string): TransformArg[] {
   const parts = splitOnComma(argsStr);
   return parts.map(classifyArg);
 }
@@ -315,7 +314,7 @@ function splitOnComma(input: string): string[] {
   return parts;
 }
 
-function classifyArg(raw: string): StepArg {
+function classifyArg(raw: string): TransformArg {
   const trimmed = raw.trim();
 
   // Quoted string → literal
