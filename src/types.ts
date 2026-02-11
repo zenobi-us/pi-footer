@@ -1,12 +1,9 @@
-import type {
-  ExtensionAPI,
-  ExtensionContext,
-} from "@mariozechner/pi-coding-agent";
-import type { PipelineStep } from "./core/pipeline";
+import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
+import type { PipelineStep } from './core/pipeline';
 
 export type FooterTemplateObjectItemBase = {
   flexGrow?: boolean;
-  align?: "left" | "right";
+  align?: 'left' | 'right';
 };
 
 export type FooterTemplateObjectItem = {
@@ -31,7 +28,7 @@ export type FooterContextValue =
 export type FooterContextState = {
   pi: ExtensionAPI;
   ctx: ExtensionContext;
-  theme: ExtensionContext["ui"]["theme"];
+  theme: ExtensionContext['ui']['theme'];
 };
 
 /**
@@ -45,22 +42,20 @@ export type ContextFilterProvider<A = any> = (
 ) => string;
 
 export type ContextValueProvider = (
-  state: FooterContextState,
+  state: FooterContextState
 ) => FooterContextValue | FooterContextValue[];
 
 export interface FooterInstance {
   render(
     pi: ExtensionAPI,
     ctx: ExtensionContext,
-    theme: ExtensionContext["ui"]["theme"],
+    theme: ExtensionContext['ui']['theme'],
     width: number,
     options: {
       template?: FooterTemplate;
-    },
+    }
   ): string[];
   registerContextValue(name: string, provider: ContextValueProvider): void;
   /** Register a native pipeline step. */
-  registerStep(name: string, step: PipelineStep): void;
-  /** @deprecated Use registerStep. Registers a legacy filter, auto-wrapped as a PipelineStep. */
-  registerContextFilter(name: string, filter: ContextFilterProvider): void;
+  registerContextFilter(name: string, step: PipelineStep): void;
 }

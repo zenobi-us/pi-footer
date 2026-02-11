@@ -1,4 +1,4 @@
-import { FooterTemplate } from "../../types";
+import { FooterTemplate } from '../../types';
 
 /**
  * Default configuration for the PI Footer extension.
@@ -30,18 +30,18 @@ import { FooterTemplate } from "../../types";
  */
 export const DEFAULT_TEMPLATE: FooterTemplate = [
   [
-    { items: ["[{git_worktree_name}:{git_branch_name}]"] },
+    { items: ['[{git_worktree_name}:{git_branch_name}]'] },
     {
       items: [
-        "{model_provider}.{model_name} [{model_context_window}:{model_context_used | humanise_percent | context_used_color}]",
+        '{model_provider}.{model_name} [{model_context_window}:{model_context_used | humanise_percent | context_used_color}]',
       ],
-      align: "right",
+      align: 'right',
     },
   ],
   [
     {
       items: ["🧠 {model_thinking_level | thinking_level_icons('ascii')}"],
-      align: "right",
+      align: 'right',
     },
   ],
 ];

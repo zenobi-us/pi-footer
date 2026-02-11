@@ -1,48 +1,23 @@
-import {
-  ContextValueProvider,
-  ContextFilterProvider,
-  FooterContextState,
-} from "../types";
-import {
-  PipelineContext,
-  PipelineStep,
-  PipelineState,
-  parseTemplate,
-  renderSegments,
-} from "./pipeline";
+import { ContextValueProvider, FooterContextState } from '../types';
+import { PipelineContext, PipelineStep, parseTemplate, renderSegments } from './pipeline';
 
 export type TemplateContext = PipelineContext & {
   state: FooterContextState;
 };
 
-export function stringifyProviderValue(
-  value: ReturnType<ContextValueProvider>,
-): string {
-  if (value == null) return "";
+export function stringifyProviderValue(value: ReturnType<ContextValueProvider>): string {
+  if (value == null) return '';
 
   const entries = Array.isArray(value) ? value : [value];
 
   return entries
     .map((entry) => {
-      if (entry == null) return "";
-      if (typeof entry === "object") return "";
+      if (entry == null) return '';
+      if (typeof entry === 'object') return '';
       return String(entry).trim();
     })
     .filter((entry) => entry.length > 0)
-    .join(" ");
-}
-
-/**
- * Wrap a legacy ContextFilterProvider as a PipelineStep.
- *
- * The adapter passes `state.value` (raw provider value) to the filter,
- * matching the original behavior where filters received rawData.
- */
-export function adaptFilter(filter: ContextFilterProvider): PipelineStep {
-  return (state: Readonly<PipelineState>, ctx: FooterContextState, ...args: unknown[]): PipelineState => {
-    const result = filter(ctx, state.value, ...args);
-    return { ...state, text: result };
-  };
+    .join(' ');
 }
 
 // ── Compiled template cache ──────────────────────────────────────────────────
@@ -70,15 +45,6 @@ export class Template {
     this.steps.set(name, step);
     this.compiledCache.clear();
   }
-
-  /**
-   * Register a legacy ContextFilterProvider, auto-wrapped as a PipelineStep.
-   */
-  registerContextFilter(name: string, filter: ContextFilterProvider): void {
-    this.steps.set(name, adaptFilter(filter));
-    this.compiledCache.clear();
-  }
-
   unregisterStep(name: string): void {
     this.steps.delete(name);
     this.compiledCache.clear();

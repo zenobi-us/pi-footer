@@ -1,6 +1,6 @@
-import { Footer } from "../footer.ts";
-import type { PipelineStep } from "../core/pipeline.ts";
-import { ThemeColor } from "@mariozechner/pi-coding-agent";
+import { Footer } from '../footer.ts';
+import type { PipelineStep } from '../core/pipeline.ts';
+import { ThemeColor } from '@mariozechner/pi-coding-agent';
 
 /**
  * fg('colorName') — wrap text in a theme foreground color.
@@ -13,7 +13,7 @@ import { ThemeColor } from "@mariozechner/pi-coding-agent";
 const fg: PipelineStep = (state, ctx, colorName) => {
   if (!state.text) return { ...state };
 
-  if (typeof colorName !== "string" || !colorName) return { ...state };
+  if (typeof colorName !== 'string' || !colorName) return { ...state };
 
   try {
     const text = ctx.theme.fg(colorName as ThemeColor, state.text);
@@ -22,7 +22,7 @@ const fg: PipelineStep = (state, ctx, colorName) => {
       transforms: [
         ...state.transforms,
         {
-          id: "fg",
+          id: 'fg',
           input: { text: state.text, value: state.value },
           output: { text: state.text, value: state.value },
         },
@@ -44,7 +44,7 @@ const fg: PipelineStep = (state, ctx, colorName) => {
 const bg: PipelineStep = (state, ctx, colorName) => {
   if (!state.text) return { ...state };
 
-  if (typeof colorName !== "string" || !colorName) return { ...state };
+  if (typeof colorName !== 'string' || !colorName) return { ...state };
 
   try {
     return { ...state, text: ctx.theme.bg(colorName as any, state.text) };
@@ -53,5 +53,5 @@ const bg: PipelineStep = (state, ctx, colorName) => {
   }
 };
 
-Footer.registerStep("fg", fg);
-Footer.registerStep("bg", bg);
+Footer.registerContextFilter('fg', fg);
+Footer.registerContextFilter('bg', bg);

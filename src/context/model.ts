@@ -1,18 +1,18 @@
-import type { AssistantMessage } from "@mariozechner/pi-ai";
-import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
-import type { PipelineStep } from "../core/pipeline.ts";
-import { Footer } from "../footer.ts";
-import type { ContextValueProvider } from "../types.ts";
+import type { AssistantMessage } from '@mariozechner/pi-ai';
+import type { ExtensionContext } from '@mariozechner/pi-coding-agent';
+import type { PipelineStep } from '../core/pipeline.ts';
+import { Footer } from '../footer.ts';
+import type { ContextValueProvider } from '../types.ts';
 
 function getContextWindow(ctx: ExtensionContext): number | null {
   const model = ctx.model as { contextWindow?: unknown } | undefined;
   const raw = model?.contextWindow;
 
-  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) {
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
     return raw;
   }
 
-  if (typeof raw === "string") {
+  if (typeof raw === 'string') {
     const parsed = Number(raw);
     if (Number.isFinite(parsed) && parsed > 0) return parsed;
   }
@@ -30,10 +30,10 @@ function getUsedTokens(ctx: ExtensionContext): number {
 
   for (let i = branch.length - 1; i >= 0; i--) {
     const entry = branch[i];
-    if (entry.type === "message" && entry.message.role === "assistant") {
+    if (entry.type === 'message' && entry.message.role === 'assistant') {
       const assistant = entry.message as AssistantMessage;
       // Skip aborted messages
-      if (assistant.stopReason !== "aborted") {
+      if (assistant.stopReason !== 'aborted') {
         lastAssistantMessage = assistant;
         break;
       }
@@ -52,12 +52,12 @@ function getUsedTokens(ctx: ExtensionContext): number {
 }
 
 const modelNameProvider: ContextValueProvider = (props) => {
-  return props.ctx.model?.id ?? "no-model";
+  return props.ctx.model?.id ?? 'no-model';
 };
 
 const modelContextWindowProvider: ContextValueProvider = (props) => {
   const limit = getContextWindow(props.ctx);
-  if (!limit) return " - ";
+  if (!limit) return ' - ';
   return `${Math.round(limit / 1_000)}k`;
 };
 
@@ -72,41 +72,41 @@ const modelContextUsedProvider: ContextValueProvider = (props) => {
 const modelThinkingLevelProvider: ContextValueProvider = (props) => {
   const level = props.pi.getThinkingLevel?.();
 
-  if (typeof level === "string" && level.length > 0) {
+  if (typeof level === 'string' && level.length > 0) {
     return level;
   }
 
-  return "-";
+  return '-';
 };
 
 const modelPlatformNameProvider: ContextValueProvider = (props) => {
   const name = props.ctx.model?.provider;
 
   if (name) return name;
-  return "-";
+  return '-';
 };
 
 const thinking_level_icons: PipelineStep = (state, _ctx, style?) => {
   const value = state.value;
-  if (typeof value !== "string" || value.length === 0 || value === "-") {
-    return { ...state, text: "-" };
+  if (typeof value !== 'string' || value.length === 0 || value === '-') {
+    return { ...state, text: '-' };
   }
 
   const icons =
-    style === "ascii"
+    style === 'ascii'
       ? {
-          minimal: "-",
-          low: "+",
-          medium: "++",
-          high: "+++",
-          max: "++++",
+          minimal: '-',
+          low: '+',
+          medium: '++',
+          high: '+++',
+          max: '++++',
         }
       : {
-          minimal: "◌",
-          low: "◔",
-          medium: "◑",
-          high: "◕",
-          max: "●",
+          minimal: '◌',
+          low: '◔',
+          medium: '◑',
+          high: '◕',
+          max: '●',
         };
 
   const text = icons[value as keyof typeof icons] ?? value;
@@ -128,23 +128,23 @@ const thinking_level_icons: PipelineStep = (state, _ctx, style?) => {
  */
 const context_used_color: PipelineStep = (state, ctx) => {
   const value = state.value;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return { ...state, text: "--" };
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { ...state, text: '--' };
   }
 
   const text = state.text || `${value}%`;
 
-  if (value >= 80) return { ...state, text: ctx.theme.fg("error", text) };
-  if (value >= 50) return { ...state, text: ctx.theme.fg("warning", text) };
-  return { ...state, text: ctx.theme.fg("success", text) };
+  if (value >= 80) return { ...state, text: ctx.theme.fg('error', text) };
+  if (value >= 50) return { ...state, text: ctx.theme.fg('warning', text) };
+  return { ...state, text: ctx.theme.fg('success', text) };
 };
 
-Footer.registerContextValue("model_context_used", modelContextUsedProvider);
-Footer.registerContextValue("model_context_window", modelContextWindowProvider);
-Footer.registerContextValue("model_thinking_level", modelThinkingLevelProvider);
-Footer.registerContextValue("model_name", modelNameProvider);
-Footer.registerContextValue("model_provider", modelPlatformNameProvider);
+Footer.registerContextValue('model_context_used', modelContextUsedProvider);
+Footer.registerContextValue('model_context_window', modelContextWindowProvider);
+Footer.registerContextValue('model_thinking_level', modelThinkingLevelProvider);
+Footer.registerContextValue('model_name', modelNameProvider);
+Footer.registerContextValue('model_provider', modelPlatformNameProvider);
 
-Footer.registerStep("thinking_level_icons", thinking_level_icons);
-Footer.registerStep("context_used_color", context_used_color);
-Footer.registerStep("model_context_colors", context_used_color);
+Footer.registerContextFilter('thinking_level_icons', thinking_level_icons);
+Footer.registerContextFilter('context_used_color', context_used_color);
+Footer.registerContextFilter('model_context_colors', context_used_color);

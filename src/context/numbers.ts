@@ -1,10 +1,10 @@
-import { Footer } from "../footer.ts";
-import type { PipelineStep } from "../core/pipeline.ts";
+import { Footer } from '../footer.ts';
+import type { PipelineStep } from '../core/pipeline.ts';
 
 const humanise_time: PipelineStep = (state) => {
   const value = state.value;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return { ...state, text: "--" };
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { ...state, text: '--' };
   }
 
   const seconds = Math.max(0, Math.round(value));
@@ -23,8 +23,8 @@ const humanise_time: PipelineStep = (state) => {
 
 const humanise_percent: PipelineStep = (state) => {
   const value = state.value;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return { ...state, text: "--" };
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { ...state, text: '--' };
   }
 
   // Accept either ratio (0..1) or percentage (0..100+)
@@ -36,8 +36,8 @@ const humanise_percent: PipelineStep = (state) => {
 
 const humanise_amount: PipelineStep = (state) => {
   const value = state.value;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return { ...state, text: "--" };
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { ...state, text: '--' };
   }
 
   return { ...state, text: Math.round(value).toString() };
@@ -45,8 +45,8 @@ const humanise_amount: PipelineStep = (state) => {
 
 const humanise_number: PipelineStep = (state) => {
   const value = state.value;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return { ...state, text: "--" };
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { ...state, text: '--' };
   }
 
   return { ...state, text: Math.round(value).toLocaleString() };
@@ -54,30 +54,30 @@ const humanise_number: PipelineStep = (state) => {
 
 const round: PipelineStep = (state, _ctx, decimals = 0) => {
   const value = state.value;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return { ...state, text: "--" };
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { ...state, text: '--' };
   }
 
-  const d = typeof decimals === "number" ? decimals : 0;
+  const d = typeof decimals === 'number' ? decimals : 0;
   return { ...state, text: value.toFixed(d) };
 };
 
 const clamp: PipelineStep = (state, _ctx, min = 0, max = 100) => {
   const value = state.value;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return { ...state, text: "--" };
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { ...state, text: '--' };
   }
 
-  const lo = typeof min === "number" ? min : 0;
-  const hi = typeof max === "number" ? max : 100;
+  const lo = typeof min === 'number' ? min : 0;
+  const hi = typeof max === 'number' ? max : 100;
   const clamped = Math.max(lo, Math.min(hi, value));
   return { ...state, text: clamped.toString(), value: clamped };
 };
 
-Footer.registerStep("humanise_time", humanise_time);
-Footer.registerStep("humanise_percent", humanise_percent);
-Footer.registerStep("humanise_percentage", humanise_percent);
-Footer.registerStep("humanise_amount", humanise_amount);
-Footer.registerStep("humanise_number", humanise_number);
-Footer.registerStep("round", round);
-Footer.registerStep("clamp", clamp);
+Footer.registerContextFilter('humanise_time', humanise_time);
+Footer.registerContextFilter('humanise_percent', humanise_percent);
+Footer.registerContextFilter('humanise_percentage', humanise_percent);
+Footer.registerContextFilter('humanise_amount', humanise_amount);
+Footer.registerContextFilter('humanise_number', humanise_number);
+Footer.registerContextFilter('round', round);
+Footer.registerContextFilter('clamp', clamp);

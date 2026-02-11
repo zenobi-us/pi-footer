@@ -1,9 +1,9 @@
-import { execFileSync } from "node:child_process";
-import { basename } from "node:path";
-import type { PipelineStep } from "../core/pipeline.ts";
-import { truncate } from "../core/strings.ts";
-import { Footer } from "../footer.ts";
-import type { ContextValueProvider } from "../types.ts";
+import { execFileSync } from 'node:child_process';
+import { basename } from 'node:path';
+import type { PipelineStep } from '../core/pipeline.ts';
+import { truncate } from '../core/strings.ts';
+import { Footer } from '../footer.ts';
+import type { ContextValueProvider } from '../types.ts';
 
 type GitStatus = {
   branch: string;
@@ -31,22 +31,22 @@ type GitStatusIconStyle = {
 
 const GIT_STATUS_STYLES: Record<string, GitStatusIconStyle> = {
   ascii: {
-    branch: "git:",
-    staged: "+",
-    unstaged: "~",
-    untracked: "?",
-    ahead: "^",
-    behind: "v",
-    clean: "clean",
+    branch: 'git:',
+    staged: '+',
+    unstaged: '~',
+    untracked: '?',
+    ahead: '^',
+    behind: 'v',
+    clean: 'clean',
   },
   unicode: {
-    branch: " ",
-    staged: "●",
-    unstaged: "✚",
-    untracked: "…",
-    ahead: "↑",
-    behind: "↓",
-    clean: "clean",
+    branch: ' ',
+    staged: '●',
+    unstaged: '✚',
+    untracked: '…',
+    ahead: '↑',
+    behind: '↓',
+    clean: 'clean',
   },
 };
 
@@ -55,10 +55,10 @@ const MAX_SUBJECT_LENGTH = 44;
 
 function runGit(cwd: string, args: string[]): string | null {
   try {
-    return execFileSync("git", ["-C", cwd, ...args], {
-      encoding: "utf-8",
+    return execFileSync('git', ['-C', cwd, ...args], {
+      encoding: 'utf-8',
       timeout: GIT_TIMEOUT_MS,
-      stdio: ["ignore", "pipe", "ignore"],
+      stdio: ['ignore', 'pipe', 'ignore'],
     }).trim();
   } catch {
     return null;
@@ -77,7 +77,7 @@ function parseBranchMeta(meta: string): { ahead: number; behind: number } {
 function parseStatus(output: string): GitStatus {
   const lines = output.split(/\r?\n/).filter((line) => line.length > 0);
 
-  let branch = "detached";
+  let branch = 'detached';
   let ahead = 0;
   let behind = 0;
   let staged = 0;
@@ -85,12 +85,10 @@ function parseStatus(output: string): GitStatus {
   let untracked = 0;
 
   const header = lines[0];
-  if (header?.startsWith("## ")) {
-    const branchMatch = header.match(
-      /^## ([^.\s]+)(?:\.\.\.[^\s]+)?(?: \[(.+)\])?/,
-    );
+  if (header?.startsWith('## ')) {
+    const branchMatch = header.match(/^## ([^.\s]+)(?:\.\.\.[^\s]+)?(?: \[(.+)\])?/);
     if (branchMatch?.[1]) {
-      branch = branchMatch[1] === "HEAD" ? "detached" : branchMatch[1];
+      branch = branchMatch[1] === 'HEAD' ? 'detached' : branchMatch[1];
     }
     if (branchMatch?.[2]) {
       const parsed = parseBranchMeta(branchMatch[2]);
@@ -100,28 +98,23 @@ function parseStatus(output: string): GitStatus {
   }
 
   for (const line of lines.slice(1)) {
-    if (line.startsWith("??")) {
+    if (line.startsWith('??')) {
       untracked += 1;
       continue;
     }
 
-    const x = line[0] ?? " ";
-    const y = line[1] ?? " ";
+    const x = line[0] ?? ' ';
+    const y = line[1] ?? ' ';
 
-    if (x !== " ") staged += 1;
-    if (y !== " ") unstaged += 1;
+    if (x !== ' ') staged += 1;
+    if (y !== ' ') unstaged += 1;
   }
 
   return { branch, ahead, behind, staged, unstaged, untracked };
 }
 
 function getGitStatus(cwd: string): GitStatus | null {
-  const output = runGit(cwd, [
-    "status",
-    "--porcelain=v1",
-    "--branch",
-    "--untracked-files=normal",
-  ]);
+  const output = runGit(cwd, ['status', '--porcelain=v1', '--branch', '--untracked-files=normal']);
   if (!output) return null;
 
   return parseStatus(output);
@@ -131,43 +124,43 @@ function getRecentCommits(cwd: string, limit = 2): GitCommit[] {
   const safeLimit = Math.max(1, Math.min(limit, 5));
 
   const output = runGit(cwd, [
-    "log",
+    'log',
     `-${safeLimit}`,
-    "--pretty=format:%h%x09%s",
-    "--no-show-signature",
+    '--pretty=format:%h%x09%s',
+    '--no-show-signature',
   ]);
 
   if (!output) return [];
 
   return output
     .split(/\r?\n/)
-    .map((line) => line.split("\t"))
-    .map(([hash = "", subject = ""]) => ({ hash, subject }))
+    .map((line) => line.split('\t'))
+    .map(([hash = '', subject = '']) => ({ hash, subject }))
     .filter((entry) => entry.hash.length > 0 && entry.subject.length > 0);
 }
 
 function getGitWorktreeName(cwd: string): string | null {
-  const worktreeRoot = runGit(cwd, ["rev-parse", "--show-toplevel"]);
+  const worktreeRoot = runGit(cwd, ['rev-parse', '--show-toplevel']);
   if (!worktreeRoot) return null;
 
   return basename(worktreeRoot);
 }
 
 function isGitStatus(value: unknown): value is GitStatus {
-  if (!value || typeof value !== "object") return false;
+  if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<GitStatus>;
   return (
-    typeof candidate.branch === "string" &&
-    typeof candidate.staged === "number" &&
-    typeof candidate.unstaged === "number" &&
-    typeof candidate.untracked === "number" &&
-    typeof candidate.ahead === "number" &&
-    typeof candidate.behind === "number"
+    typeof candidate.branch === 'string' &&
+    typeof candidate.staged === 'number' &&
+    typeof candidate.unstaged === 'number' &&
+    typeof candidate.untracked === 'number' &&
+    typeof candidate.ahead === 'number' &&
+    typeof candidate.behind === 'number'
   );
 }
 
 function resolveGitStatusStyle(styleArg: unknown): GitStatusIconStyle {
-  if (typeof styleArg !== "string") return GIT_STATUS_STYLES.ascii;
+  if (typeof styleArg !== 'string') return GIT_STATUS_STYLES.ascii;
 
   const normalized = styleArg.trim();
   if (!normalized) return GIT_STATUS_STYLES.ascii;
@@ -176,8 +169,8 @@ function resolveGitStatusStyle(styleArg: unknown): GitStatusIconStyle {
     return GIT_STATUS_STYLES[normalized];
   }
 
-  if (normalized.startsWith("GitStatusStyle.")) {
-    const key = normalized.slice("GitStatusStyle.".length);
+  if (normalized.startsWith('GitStatusStyle.')) {
+    const key = normalized.slice('GitStatusStyle.'.length);
     if (key in GIT_STATUS_STYLES) {
       return GIT_STATUS_STYLES[key];
     }
@@ -188,7 +181,7 @@ function resolveGitStatusStyle(styleArg: unknown): GitStatusIconStyle {
 
 const git_status_icons: PipelineStep = (state, _ctx, styleArg?) => {
   const value = state.value;
-  if (!isGitStatus(value)) return { ...state, text: "--" };
+  if (!isGitStatus(value)) return { ...state, text: '--' };
 
   const style = resolveGitStatusStyle(styleArg);
   const markers: string[] = [];
@@ -199,18 +192,18 @@ const git_status_icons: PipelineStep = (state, _ctx, styleArg?) => {
   if (value.ahead > 0) markers.push(`${style.ahead}${value.ahead}`);
   if (value.behind > 0) markers.push(`${style.behind}${value.behind}`);
 
-  const summary = markers.length > 0 ? markers.join(" ") : style.clean;
+  const summary = markers.length > 0 ? markers.join(' ') : style.clean;
   const text = `${style.branch}${value.branch} ${summary}`.trim();
   return { ...state, text };
 };
 
 const gitBranchNameProvider: ContextValueProvider = (props) => {
   const status = getGitStatus(props.ctx.cwd);
-  return status?.branch ?? "";
+  return status?.branch ?? '';
 };
 
 const gitWorktreeNameProvider: ContextValueProvider = (props) => {
-  return getGitWorktreeName(props.ctx.cwd) ?? "";
+  return getGitWorktreeName(props.ctx.cwd) ?? '';
 };
 
 const gitStatusProvider: ContextValueProvider = (props) => {
@@ -228,9 +221,9 @@ const recentCommitsProvider: ContextValueProvider = (props) => {
   };
 };
 
-Footer.registerContextValue("git_branch_name", gitBranchNameProvider);
-Footer.registerContextValue("git_worktree_name", gitWorktreeNameProvider);
-Footer.registerContextValue("git_status", gitStatusProvider);
-Footer.registerContextValue("recent_commits", recentCommitsProvider);
+Footer.registerContextValue('git_branch_name', gitBranchNameProvider);
+Footer.registerContextValue('git_worktree_name', gitWorktreeNameProvider);
+Footer.registerContextValue('git_status', gitStatusProvider);
+Footer.registerContextValue('recent_commits', recentCommitsProvider);
 
-Footer.registerStep("git_status_icons", git_status_icons);
+Footer.registerContextFilter('git_status_icons', git_status_icons);

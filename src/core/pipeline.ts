@@ -1,4 +1,4 @@
-import type { FooterContextState } from "../types";
+import type { FooterContextState } from '../types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,9 +52,7 @@ export type StepDescriptor = {
   args: StepArg[];
 };
 
-export type StepArg =
-  | { type: "literal"; value: unknown }
-  | { type: "ref"; key: string };
+export type StepArg = { type: 'literal'; value: unknown } | { type: 'ref'; key: string };
 
 // ── Pipeline class ───────────────────────────────────────────────────────────
 
@@ -68,12 +66,12 @@ export class Pipeline {
   constructor(
     private source: string,
     private steps: StepDescriptor[],
-    private registry: ReadonlyMap<string, PipelineStep>,
+    private registry: ReadonlyMap<string, PipelineStep>
   ) {}
 
   run(ctx: FooterContextState, templateCtx: PipelineContext): PipelineResult {
     const rawValue = templateCtx.rawData[this.source];
-    const text = templateCtx.data[this.source] ?? "";
+    const text = templateCtx.data[this.source] ?? '';
 
     let state: PipelineState = {
       text,
@@ -86,22 +84,20 @@ export class Pipeline {
     for (const descriptor of this.steps) {
       const step = this.registry.get(descriptor.name);
       if (!step) {
-        console.warn(`Unknown pipeline step: ${descriptor.name}`);
         continue;
       }
 
       const resolvedArgs = descriptor.args.map((arg) =>
-        arg.type === "literal"
+        arg.type === 'literal'
           ? arg.value
-          : (templateCtx.rawData[arg.key] ?? templateCtx.data[arg.key] ?? arg.key),
+          : templateCtx.rawData[arg.key] ?? templateCtx.data[arg.key] ?? arg.key
       );
 
       const input = { text: state.text, value: state.value };
 
       try {
         state = step(state, ctx, ...resolvedArgs);
-      } catch (error) {
-        console.error(`Pipeline step ${descriptor.name} failed:`, error);
+      } catch {
         continue;
       }
 
@@ -130,9 +126,7 @@ export class Pipeline {
 
 // ── Parsing ──────────────────────────────────────────────────────────────────
 
-type TemplateSegment =
-  | { type: "literal"; text: string }
-  | { type: "pipeline"; pipeline: Pipeline };
+type TemplateSegment = { type: 'literal'; text: string } | { type: 'pipeline'; pipeline: Pipeline };
 
 /**
  * Parse a template string into segments of literal text and compiled pipelines.
@@ -148,7 +142,7 @@ type TemplateSegment =
  */
 export function parseTemplate(
   template: string,
-  registry: ReadonlyMap<string, PipelineStep>,
+  registry: ReadonlyMap<string, PipelineStep>
 ): TemplateSegment[] {
   const segments: TemplateSegment[] = [];
   const re = /\{\s*([\w-]+)(?:\s*\|\s*([^}]+))?\s*\}/g;
@@ -158,7 +152,7 @@ export function parseTemplate(
   while ((match = re.exec(template)) !== null) {
     // Literal text before this match
     if (match.index > lastIndex) {
-      segments.push({ type: "literal", text: template.slice(lastIndex, match.index) });
+      segments.push({ type: 'literal', text: template.slice(lastIndex, match.index) });
     }
 
     const source = match[1];
@@ -166,7 +160,7 @@ export function parseTemplate(
     const steps = filterChain ? parseFilterChain(filterChain) : [];
 
     segments.push({
-      type: "pipeline",
+      type: 'pipeline',
       pipeline: new Pipeline(source, steps, registry),
     });
 
@@ -175,7 +169,7 @@ export function parseTemplate(
 
   // Trailing literal
   if (lastIndex < template.length) {
-    segments.push({ type: "literal", text: template.slice(lastIndex) });
+    segments.push({ type: 'literal', text: template.slice(lastIndex) });
   }
 
   return segments;
@@ -207,7 +201,7 @@ function parseFilterChain(chain: string): StepDescriptor[] {
  */
 function splitOnPipe(input: string): string[] {
   const parts: string[] = [];
-  let current = "";
+  let current = '';
   let depth = 0;
   let quote: "'" | '"' | null = null;
 
@@ -215,7 +209,7 @@ function splitOnPipe(input: string): string[] {
     const ch = input[i];
 
     // Quote tracking
-    if ((ch === "'" || ch === '"') && (i === 0 || input[i - 1] !== "\\")) {
+    if ((ch === "'" || ch === '"') && (i === 0 || input[i - 1] !== '\\')) {
       if (quote === ch) {
         quote = null;
       } else if (quote === null) {
@@ -227,12 +221,20 @@ function splitOnPipe(input: string): string[] {
 
     // Paren tracking (outside quotes)
     if (quote === null) {
-      if (ch === "(") { depth++; current += ch; continue; }
-      if (ch === ")") { depth = Math.max(0, depth - 1); current += ch; continue; }
+      if (ch === '(') {
+        depth++;
+        current += ch;
+        continue;
+      }
+      if (ch === ')') {
+        depth = Math.max(0, depth - 1);
+        current += ch;
+        continue;
+      }
 
-      if (ch === "|" && depth === 0) {
+      if (ch === '|' && depth === 0) {
         parts.push(current);
-        current = "";
+        current = '';
         continue;
       }
     }
@@ -276,13 +278,13 @@ function parseStepArgs(argsStr: string): StepArg[] {
 
 function splitOnComma(input: string): string[] {
   const parts: string[] = [];
-  let current = "";
+  let current = '';
   let quote: "'" | '"' | null = null;
 
   for (let i = 0; i < input.length; i++) {
     const ch = input[i];
 
-    if ((ch === "'" || ch === '"') && (i === 0 || input[i - 1] !== "\\")) {
+    if ((ch === "'" || ch === '"') && (i === 0 || input[i - 1] !== '\\')) {
       if (quote === ch) {
         quote = null;
       } else if (quote === null) {
@@ -292,9 +294,9 @@ function splitOnComma(input: string): string[] {
       continue;
     }
 
-    if (ch === "," && quote === null) {
+    if (ch === ',' && quote === null) {
       parts.push(current.trim());
-      current = "";
+      current = '';
       continue;
     }
 
@@ -310,23 +312,23 @@ function classifyArg(raw: string): StepArg {
 
   // Quoted string → literal
   const quoted = trimmed.match(/^(["'])(.*)\1$/);
-  if (quoted) return { type: "literal", value: quoted[2] };
+  if (quoted) return { type: 'literal', value: quoted[2] };
 
   // Boolean → literal
-  if (trimmed === "true") return { type: "literal", value: true };
-  if (trimmed === "false") return { type: "literal", value: false };
+  if (trimmed === 'true') return { type: 'literal', value: true };
+  if (trimmed === 'false') return { type: 'literal', value: false };
 
   // Null → literal
-  if (trimmed === "null") return { type: "literal", value: null };
+  if (trimmed === 'null') return { type: 'literal', value: null };
 
   // Number → literal
   const num = Number(trimmed);
   if (!Number.isNaN(num) && Number.isFinite(num) && trimmed.length > 0) {
-    return { type: "literal", value: num };
+    return { type: 'literal', value: num };
   }
 
   // Bare word → context reference
-  return { type: "ref", key: trimmed };
+  return { type: 'ref', key: trimmed };
 }
 
 // ── Render helper ────────────────────────────────────────────────────────────
@@ -337,11 +339,11 @@ function classifyArg(raw: string): StepArg {
 export function renderSegments(
   segments: TemplateSegment[],
   ctx: FooterContextState,
-  templateCtx: PipelineContext,
+  templateCtx: PipelineContext
 ): string {
-  let result = "";
+  let result = '';
   for (const seg of segments) {
-    if (seg.type === "literal") {
+    if (seg.type === 'literal') {
       result += seg.text;
     } else {
       result += seg.pipeline.run(ctx, templateCtx).text;

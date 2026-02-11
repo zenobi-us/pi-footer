@@ -1,72 +1,176 @@
-# my-bun-module
+# pi-footer extension
 
-A Bun module
+Composable footer for `pi` with provider-driven data and a compiled pipeline renderer.
 
-> A Bun module created from the [bun-module](https://github.com/zenobi-us/bun-module) template
+## What this extension provides
 
-## Features
+- Global `Footer` registry
+- Context **providers** (data sources)
+- Pipeline **steps** (transform/color/format stages)
+- Template-based layout with left/right alignment + flex growth
+- Built-in providers for model, git, cwd, time, and usage trackers
+- Debug command for inspecting pipeline execution
 
-- 🏗️ TypeScript-based module architecture
-- 🔧 Mise task runner integration
-- 📦 Bun/npm build tooling
-- ✨ ESLint + Prettier formatting
-- 🧪 Vitest testing setup
-- 🚀 GitHub Actions CI/CD
-- 📝 Release automation with release-please
+---
 
-## Getting Started
+## Architecture (provider → step → step)
 
-1. **Clone this template:**
+Each `{ ... }` expression in a template is compiled into a pipeline.
 
-   ```bash
-   cp -r bun-module your-module-name
-   cd your-module-name
-   ```
+Example:
 
-2. **Update package.json:**
-   - Change `name` to your module name
-   - Update `description`
-   - Update `repository.url`
+```txt
+{ model_context_used | humanise_percent | context_used_color }
+```
 
-3. **Install dependencies:**
+Execution flow:
 
-   ```bash
-   bun install
-   ```
+1. `model_context_used` provider resolves raw value (e.g. `64`)
+2. `humanise_percent` step updates text to `"64%"`
+3. `context_used_color` step applies theme color based on numeric value
+4. Pipeline returns final text
 
-4. **Implement your module in `src/index.ts`:**
+Pipelines are parsed once (cached by template string) and executed each render.
 
-   ```typescript
-   export function hello(name: string): string {
-     return `Hello, ${name}!`;
-   }
-   ```
+---
 
-5. **Test your module:**
-   ```bash
-   mise run test
-   ```
+## Template syntax
 
-## Development
+### Basic
 
-- `mise run build` - Build the module
-- `mise run test` - Run tests
-- `mise run lint` - Lint code
-- `mise run lint:fix` - Fix linting issues
-- `mise run format` - Format code with Prettier
+```txt
+{provider_key}
+{provider_key | step_one | step_two('arg')}
+```
 
-## Author
+### Chained steps
 
-Your Name <you@example.com>
+```txt
+{model_context_used | humanise_percent | context_used_color}
+```
 
-## Repository
+### Args: literal vs context reference
 
-https://github.com/zenobi-us/pi-footer.git
+- **Quoted args** are literals:
+  - `fg('accent')` → literal string `accent`
+- **Unquoted args** are context refs:
+  - `clamp(0, model_context_window)`
 
-## Contributing
+If an unquoted ref key does not exist, it falls back to the raw token string.
 
-Contributions are welcome! Please file issues or submit pull requests on the GitHub repository.
+---
 
-## License
+## Built-in providers
 
-MIT License. See the [LICENSE](LICENSE) file for details.
+### Core
+
+- `{time}` – current local time
+- `{cwd}` – current directory name
+- `{model_name}` – active model id
+- `{model_provider}` – active model provider
+- `{model_context_used}` – context usage as number `0..100`
+- `{model_context_window}` – context window (e.g. `200k`)
+- `{model_thinking_level}` – current thinking level
+
+### Git
+
+- `{git_branch_name}`
+- `{git_worktree_name}`
+- `{git_status}` (structured object)
+- `{recent_commits}` (structured object)
+
+### Usage tracking
+
+From tracker integration (auto-detected + per-platform), including:
+
+- `{usage_emoji}`
+- `{usage_platform}`
+- `{usage_quota_remaining}`
+- `{usage_quota_percent_used}`
+- `{anthropic_*}`, `{copilot_*}`, `{codex_*}` variants
+
+---
+
+## Built-in pipeline steps
+
+- `humanise_time`
+- `humanise_percent` (alias: `humanise_percentage`)
+- `humanise_amount`
+- `humanise_number`
+- `round(n)`
+- `clamp(min,max)`
+- `fg('themeColor')`
+- `bg('themeColor')`
+- `thinking_level_icons('ascii' | 'unicode')`
+- `git_status_icons('ascii' | 'unicode')`
+- `context_used_color` (alias: `model_context_colors`)
+
+`context_used_color` thresholds:
+
+- `< 50` → success
+- `50..79` → warning
+- `>= 80` → error
+
+---
+
+## Template layout config
+
+Set in `services/config/defaults.ts` or override via `Config.template`.
+
+Example:
+
+```ts
+Config.template = [
+  [
+    { items: ["[{git_worktree_name}:{git_branch_name}]"] },
+    {
+      items: [
+        "{model_provider}.{model_name} [{model_context_window}:{model_context_used | humanise_percent | context_used_color}]",
+      ],
+      align: "right",
+    },
+  ],
+];
+```
+
+Supported object item fields:
+
+- `items: (string | FooterTemplateObjectItem)[]`
+- `separator?: string`
+- `align?: 'left' | 'right'`
+- `flexGrow?: boolean`
+
+---
+
+## Extension API usage
+
+```ts
+import piFooterExtension, { Footer } from "./pi-footer/index.ts";
+
+export default function (pi) {
+  piFooterExtension(pi);
+
+  // Add provider
+  Footer.registerContextValue("custom_value", ({ ctx }) => ctx.cwd.length);
+
+  // Add pipeline step
+  Footer.registerStep("custom_format", (state) => ({
+    ...state,
+    text: `len=${state.value}`,
+  }));
+}
+```
+
+---
+
+## Commands
+
+- `/usage-store` – list usage tracker entries
+- `/context-providers` – list registered providers + steps
+- `/pipeline-debug {expr}` – inspect pipeline transform history
+
+Example:
+
+```txt
+/pipeline-debug {model_context_used | humanise_percent | context_used_color}
+```

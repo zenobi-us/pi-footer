@@ -1,4 +1,4 @@
-import { Box, Container } from "@mariozechner/pi-tui";
+import { Box, Container } from '@mariozechner/pi-tui';
 
 export class FooterRow extends Container {}
 
