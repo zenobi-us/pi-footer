@@ -1,6 +1,7 @@
 import { Footer } from '../footer.ts';
 import type { PipelineTransform } from '../core/pipeline.ts';
 
+/* Transform: convert seconds into compact d/h/m/s representation. */
 const humanise_time: PipelineTransform = (state) => {
   const value = state.value;
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -21,19 +22,20 @@ const humanise_time: PipelineTransform = (state) => {
   return { ...state, text };
 };
 
+/* Transform: normalize ratio/percent values and emit rounded percentage text. */
 const humanise_percent: PipelineTransform = (state) => {
   const value = state.value;
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return { ...state, text: '--' };
   }
 
-  // Accept either ratio (0..1) or percentage (0..100+)
   const percent = value <= 1 ? value * 100 : value;
   const rounded = Math.max(0, Math.round(percent));
 
   return { ...state, value: rounded, text: `${rounded}%` };
 };
 
+/* Transform: round numeric value to nearest integer and output plain digits. */
 const humanise_amount: PipelineTransform = (state) => {
   const value = state.value;
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -43,6 +45,7 @@ const humanise_amount: PipelineTransform = (state) => {
   return { ...state, text: Math.round(value).toString() };
 };
 
+/* Transform: round numeric value and format using locale separators. */
 const humanise_number: PipelineTransform = (state) => {
   const value = state.value;
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -52,6 +55,7 @@ const humanise_number: PipelineTransform = (state) => {
   return { ...state, text: Math.round(value).toLocaleString() };
 };
 
+/* Transform: format numeric value using fixed decimal places. */
 const round: PipelineTransform = (state, _ctx, decimals = 0) => {
   const value = state.value;
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -62,6 +66,7 @@ const round: PipelineTransform = (state, _ctx, decimals = 0) => {
   return { ...state, text: value.toFixed(d) };
 };
 
+/* Transform: clamp numeric value into [min, max] range and update value + text. */
 const clamp: PipelineTransform = (state, _ctx, min = 0, max = 100) => {
   const value = state.value;
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -74,6 +79,7 @@ const clamp: PipelineTransform = (state, _ctx, min = 0, max = 100) => {
   return { ...state, text: clamped.toString(), value: clamped };
 };
 
+/* Register built-in numeric formatting transforms. */
 Footer.registerContextTransform('humanise_time', humanise_time);
 Footer.registerContextTransform('humanise_percent', humanise_percent);
 Footer.registerContextTransform('humanise_percentage', humanise_percent);

@@ -3,11 +3,35 @@ import { Template, TemplateContext } from './core/template';
 import { FooterInstance, FooterTemplate, FooterTemplateObjectItem } from './types';
 
 type RenderedTemplateItem = {
+  /*
+   * Normalized rendered text for this item.
+   */
   text: string;
+
+  /*
+   * Alignment bucket used during row composition.
+   */
   align: 'left' | 'right';
+
+  /*
+   * Whether this item should be included in the trailing block.
+   */
   flexGrow: boolean;
 };
 
+/*
+ * Purpose:
+ * Render a single template node (string or nested object) into a normalized item.
+ *
+ * Inputs:
+ * - `template`: template runtime instance
+ * - `context`: current render context
+ * - `entry`: template node to render
+ * - `rootSeparator`: default separator inherited from the row
+ *
+ * Returns:
+ * - `RenderedTemplateItem` or `null` when resulting text is empty
+ */
 function renderTemplateItem(
   template: Template,
   context: TemplateContext,
@@ -37,6 +61,20 @@ function renderTemplateItem(
   };
 }
 
+/*
+ * Purpose:
+ * Render one footer row by composing left and trailing groups with adaptive spacing.
+ *
+ * Inputs:
+ * - `templateEngine`: template runtime instance
+ * - `context`: current render context
+ * - `line`: one template row definition
+ * - `width`: available row width
+ * - `separator`: row join separator string
+ *
+ * Returns:
+ * - Final rendered row constrained to `width`
+ */
 function renderTemplateLine(
   templateEngine: Template,
   context: TemplateContext,
@@ -71,17 +109,45 @@ function renderTemplateLine(
   return truncateToWidth(`${left}${pad}${trailing}`, width);
 }
 
+/*
+ * Purpose:
+ * Build the singleton footer runtime that owns provider/transform registries.
+ *
+ * Returns:
+ * - Footer instance with public registration and rendering API
+ */
 function createFooter(): FooterInstance & { template: Template } {
   const template = new Template();
 
   return {
+    /*
+     * Public template runtime for command-level introspection/debugging.
+     */
     template,
+
+    /*
+     * Purpose:
+     * Register a context provider accessible from template placeholders.
+     */
     registerContextValue(name, provider) {
       template.registerContextProvider(name, provider);
     },
+
+    /*
+     * Purpose:
+     * Register a transform accessible from template pipeline expressions.
+     */
     registerContextTransform(name, transform) {
       template.registerTransform(name, transform);
     },
+
+    /*
+     * Purpose:
+     * Render all configured rows using a fresh context snapshot.
+     *
+     * Returns:
+     * - One rendered string per template row
+     */
     render(pi, ctx, theme, width, options) {
       if (!options.template) {
         return [''];
@@ -100,4 +166,7 @@ function createFooter(): FooterInstance & { template: Template } {
   };
 }
 
+/*
+ * Global footer instance consumed by extension entrypoint and built-in context modules.
+ */
 export const Footer = createFooter();

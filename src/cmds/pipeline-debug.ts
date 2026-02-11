@@ -3,6 +3,7 @@ import { parseTemplate } from '../core/pipeline.ts';
 import type { Template } from '../core/template.ts';
 import type { FooterInstance } from '../types.ts';
 
+/* Render unknown values safely for debug output lines. */
 function formatValue(value: unknown): string {
   if (typeof value === 'string') return JSON.stringify(value);
   if (typeof value === 'number' || typeof value === 'boolean') {
@@ -17,12 +18,16 @@ function formatValue(value: unknown): string {
   }
 }
 
+/* Ensure expression includes outer braces so parser treats it as a pipeline segment. */
 function ensureBraces(input: string): string {
   const trimmed = input.trim();
   if (trimmed.startsWith('{') && trimmed.endsWith('}')) return trimmed;
   return `{${trimmed}}`;
 }
 
+/*
+ * Register `/pipeline-debug` command to inspect parsed pipeline execution step-by-step.
+ */
 export function registerPipelineDebugCommand(pi: ExtensionAPI, footer: FooterInstance): void {
   pi.registerCommand('pipeline-debug', {
     description:

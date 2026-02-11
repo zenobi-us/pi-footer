@@ -14,7 +14,7 @@ Composable footer for `pi` with provider-driven data and a compiled pipeline ren
 renders: 
 
 ```txt
-gpt-4.0 [200k:64%]             [my-worktree:main]
+openai-codex.gpt-4.0 [200k:64%]                                        [my-worktree:main]
 ```
 
 

@@ -1,32 +1,12 @@
 import { FooterTemplate } from '../../types';
 
-/**
- * Default configuration for the PI Footer extension.
+/*
+ * Default footer template used when consumers do not override `Config.template`.
  *
- * Examples:
- *
- * ```ts
- * export const DEFAULT_TEMPLATE = [
- *   [
- *     "{model_context_used}/{model_context_window} | {model_name}",
- *     { items: ["{cwd}"] },
- *   ],
- * ];
- * ```
- *
- * flex spacing:
- * ```ts
- * export const DEFAULT_TEMPLATE = [
- *  [
- *  "{model_context_used}/{model_context_window} | {model_name}",
- *  { items: ["{cwd}"], flex: 1 },
- *  ],
- *  [
- *  "{git_branch_name}",
- *  { items: ["{last_commit_message}"], flex: 0 },
- *  ],
- * ];
- *
+ * Main flow usage examples intentionally rely on built-in `src/context/*` providers:
+ * - git.ts: `git_worktree_name`, `git_branch_name`
+ * - model.ts: `model_provider`, `model_name`, `model_context_window`, `model_context_used`, `model_thinking_level`
+ * - numbers.ts/model.ts transforms: `humanise_percent`, `context_used_color`, `thinking_level_icons`
  */
 export const DEFAULT_TEMPLATE: FooterTemplate = [
   [

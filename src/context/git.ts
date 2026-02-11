@@ -6,29 +6,57 @@ import { Footer } from '../footer.ts';
 import type { ContextValueProvider } from '../types.ts';
 
 type GitStatus = {
+  /* Current branch label, or `detached` when HEAD is not attached to a branch. */
   branch: string;
+
+  /* Number of commits the local branch is ahead of upstream. */
   ahead: number;
+
+  /* Number of commits the local branch is behind upstream. */
   behind: number;
+
+  /* Number of staged file entries in porcelain status output. */
   staged: number;
+
+  /* Number of unstaged file entries in porcelain status output. */
   unstaged: number;
+
+  /* Number of untracked file entries in porcelain status output. */
   untracked: number;
 };
 
 type GitCommit = {
+  /* Short commit hash from `%h`. */
   hash: string;
+
+  /* Commit subject line from `%s`. */
   subject: string;
 };
 
 type GitStatusIconStyle = {
+  /* Prefix marker used before branch name. */
   branch: string;
+
+  /* Marker used for staged count. */
   staged: string;
+
+  /* Marker used for unstaged count. */
   unstaged: string;
+
+  /* Marker used for untracked count. */
   untracked: string;
+
+  /* Marker used for ahead count. */
   ahead: string;
+
+  /* Marker used for behind count. */
   behind: string;
+
+  /* Marker used when working tree has no deltas. */
   clean: string;
 };
 
+/* Built-in styles for `git_status_icons(style)` transform argument. */
 const GIT_STATUS_STYLES: Record<string, GitStatusIconStyle> = {
   ascii: {
     branch: 'git:',
@@ -50,9 +78,23 @@ const GIT_STATUS_STYLES: Record<string, GitStatusIconStyle> = {
   },
 };
 
+/* Hard timeout to avoid blocking the footer render loop on slow git calls. */
 const GIT_TIMEOUT_MS = 250;
+
+/* Character cap for commit subject preview in `recent_commits` provider. */
 const MAX_SUBJECT_LENGTH = 44;
 
+/*
+ * Purpose:
+ * Run a git subcommand in `cwd`.
+ *
+ * Inputs:
+ * - `cwd`: working directory
+ * - `args`: git argument list
+ *
+ * Returns:
+ * - Trimmed stdout on success, otherwise `null`
+ */
 function runGit(cwd: string, args: string[]): string | null {
   try {
     return execFileSync('git', ['-C', cwd, ...args], {
@@ -65,6 +107,16 @@ function runGit(cwd: string, args: string[]): string | null {
   }
 }
 
+/*
+ * Purpose:
+ * Parse git status header metadata fragment (e.g. `ahead 2, behind 1`).
+ *
+ * Inputs:
+ * - `meta`: bracket metadata from porcelain header
+ *
+ * Returns:
+ * - Ahead/behind counters
+ */
 function parseBranchMeta(meta: string): { ahead: number; behind: number } {
   const aheadMatch = meta.match(/ahead (\d+)/);
   const behindMatch = meta.match(/behind (\d+)/);
@@ -74,6 +126,16 @@ function parseBranchMeta(meta: string): { ahead: number; behind: number } {
   };
 }
 
+/*
+ * Purpose:
+ * Parse porcelain status output into structured counters.
+ *
+ * Inputs:
+ * - `output`: stdout from `git status --porcelain=v1 --branch`
+ *
+ * Returns:
+ * - Structured `GitStatus`
+ */
 function parseStatus(output: string): GitStatus {
   const lines = output.split(/\r?\n/).filter((line) => line.length > 0);
 
@@ -113,6 +175,16 @@ function parseStatus(output: string): GitStatus {
   return { branch, ahead, behind, staged, unstaged, untracked };
 }
 
+/*
+ * Purpose:
+ * Resolve repository status for a directory.
+ *
+ * Inputs:
+ * - `cwd`: working directory
+ *
+ * Returns:
+ * - `GitStatus` or `null` when unavailable
+ */
 function getGitStatus(cwd: string): GitStatus | null {
   const output = runGit(cwd, ['status', '--porcelain=v1', '--branch', '--untracked-files=normal']);
   if (!output) return null;
@@ -120,6 +192,17 @@ function getGitStatus(cwd: string): GitStatus | null {
   return parseStatus(output);
 }
 
+/*
+ * Purpose:
+ * Read recent commits for compact footer display.
+ *
+ * Inputs:
+ * - `cwd`: working directory
+ * - `limit`: desired number of commits (clamped internally)
+ *
+ * Returns:
+ * - Array of `{hash, subject}` entries, newest first
+ */
 function getRecentCommits(cwd: string, limit = 2): GitCommit[] {
   const safeLimit = Math.max(1, Math.min(limit, 5));
 
@@ -139,6 +222,16 @@ function getRecentCommits(cwd: string, limit = 2): GitCommit[] {
     .filter((entry) => entry.hash.length > 0 && entry.subject.length > 0);
 }
 
+/*
+ * Purpose:
+ * Resolve worktree display name from repository top-level path basename.
+ *
+ * Inputs:
+ * - `cwd`: working directory
+ *
+ * Returns:
+ * - Worktree name or `null`
+ */
 function getGitWorktreeName(cwd: string): string | null {
   const worktreeRoot = runGit(cwd, ['rev-parse', '--show-toplevel']);
   if (!worktreeRoot) return null;
@@ -146,6 +239,7 @@ function getGitWorktreeName(cwd: string): string | null {
   return basename(worktreeRoot);
 }
 
+/* Runtime type guard used by `git_status_icons` transform. */
 function isGitStatus(value: unknown): value is GitStatus {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<GitStatus>;
@@ -159,6 +253,7 @@ function isGitStatus(value: unknown): value is GitStatus {
   );
 }
 
+/* Normalize transform style argument to one of the known icon style maps. */
 function resolveGitStatusStyle(styleArg: unknown): GitStatusIconStyle {
   if (typeof styleArg !== 'string') return GIT_STATUS_STYLES.ascii;
 
@@ -179,6 +274,7 @@ function resolveGitStatusStyle(styleArg: unknown): GitStatusIconStyle {
   return GIT_STATUS_STYLES.ascii;
 }
 
+/* Convert structured git status object into compact branch + delta indicator text. */
 const git_status_icons: PipelineTransform = (state, _ctx, styleArg?) => {
   const value = state.value;
   if (!isGitStatus(value)) return { ...state, text: '--' };
@@ -197,19 +293,23 @@ const git_status_icons: PipelineTransform = (state, _ctx, styleArg?) => {
   return { ...state, text };
 };
 
+/* Provider: current git branch label for `{git_branch_name}`. */
 const gitBranchNameProvider: ContextValueProvider = (props) => {
   const status = getGitStatus(props.ctx.cwd);
   return status?.branch ?? '';
 };
 
+/* Provider: current git worktree folder name for `{git_worktree_name}`. */
 const gitWorktreeNameProvider: ContextValueProvider = (props) => {
   return getGitWorktreeName(props.ctx.cwd) ?? '';
 };
 
+/* Provider: full structured status object for transform-based rendering. */
 const gitStatusProvider: ContextValueProvider = (props) => {
   return getGitStatus(props.ctx.cwd);
 };
 
+/* Provider: latest commit summary object with truncated subject line. */
 const recentCommitsProvider: ContextValueProvider = (props) => {
   const recent = getRecentCommits(props.ctx.cwd, 1);
   const latest = recent[0];
@@ -221,9 +321,11 @@ const recentCommitsProvider: ContextValueProvider = (props) => {
   };
 };
 
+/* Register built-in git providers. */
 Footer.registerContextValue('git_branch_name', gitBranchNameProvider);
 Footer.registerContextValue('git_worktree_name', gitWorktreeNameProvider);
 Footer.registerContextValue('git_status', gitStatusProvider);
 Footer.registerContextValue('recent_commits', recentCommitsProvider);
 
+/* Register built-in git transforms. */
 Footer.registerContextTransform('git_status_icons', git_status_icons);

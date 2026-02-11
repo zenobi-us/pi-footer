@@ -3,42 +3,62 @@ import type { FooterContextState } from '../types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-/** The resolved context data a pipeline reads from at runtime. */
 export type PipelineContext = {
+  /* Stringified provider values intended for display rendering. */
   data: Record<string, string>;
+
+  /* Raw provider values used by transforms and argument references. */
   rawData: Record<string, unknown>;
 };
 
 export type TransformRecord = {
+  /* Transform registry id that executed (e.g. `humanise_percent`). */
   id: string;
+
+  /* Snapshot of text/value before the transform was applied. */
   input: { text: string; value: unknown };
+
+  /* Snapshot of text/value after the transform finished. */
   output: { text: string; value: unknown };
 };
 
 export type PipelineState = {
+  /* Current display text at this step of the pipeline. */
   text: string;
+
+  /* Current semantic value at this step of the pipeline. */
   value: unknown;
+
+  /* Source provider key that initiated this pipeline. */
   source: string;
+
+  /* Cross-transform scratchpad for advanced transform composition. */
   meta: Record<string, unknown>;
+
+  /* Execution history records appended after each successful transform. */
   transforms: TransformRecord[];
 };
 
 export type PipelineResult = {
+  /* Source provider key that initiated this pipeline. */
   source: string;
+
+  /* Provider raw value before any transforms ran. */
   initialValue: unknown;
+
+  /* Final semantic value after all transform steps complete. */
   finalValue: unknown;
+
+  /* Final display text emitted into template output. */
   text: string;
+
+  /* Ordered transform history for debugging/inspection. */
   transforms: TransformRecord[];
 };
 
-/**
- * A pipeline transform receives immutable state + ambient context, returns new state.
- *
- * Convention:
- *  - Read `state.value` for semantic data (numbers, objects, etc.)
- *  - Read `state.text` for the current display string
- *  - Read `state.meta` for data left by earlier transforms
- *  - Return a new state with updated text/value/meta
+/*
+ * A transform receives immutable pipeline state + ambient footer context,
+ * then returns the next pipeline state.
  */
 export type PipelineTransform = (
   ...args: [Readonly<PipelineState>, FooterContextState, ...unknown[]]
@@ -47,25 +67,53 @@ export type PipelineTransform = (
 // ── Transform descriptor (parsed from template) ──────────────────────────────
 
 export type TransformDescriptor = {
+  /* Transform name looked up in the runtime registry. */
   name: string;
+
+  /* Parsed argument descriptors resolved at execution time. */
   args: TransformArg[];
 };
 
-export type TransformArg = { type: 'literal'; value: unknown } | { type: 'ref'; key: string };
+export type TransformArg =
+  | {
+      /* Discriminator for literal argument variant. */
+      type: 'literal';
+
+      /* Parsed literal value (string/number/boolean/null). */
+      value: unknown;
+    }
+  | {
+      /* Discriminator for runtime context reference variant. */
+      type: 'ref';
+
+      /* Context key resolved from `rawData`/`data` at pipeline runtime. */
+      key: string;
+    };
 
 // ── Pipeline class ───────────────────────────────────────────────────────────
 
-/**
- * A compiled pipeline for a single template expression `{key | transform | transform}`.
+/*
+ * Purpose:
+ * Represent one compiled pipeline expression: `{provider | transformA | transformB(...)}`.
  *
- * Construction is the parse/compile phase — done once per template.
- * `run()` is the execute phase — called per render with fresh context.
+ * Notes:
+ * - Construction happens at parse/compile time.
+ * - `run()` executes per render with fresh runtime context.
  */
 export class Pipeline {
   private source: string;
   private transforms: TransformDescriptor[];
   private registry: ReadonlyMap<string, PipelineTransform>;
 
+  /*
+   * Purpose:
+   * Store source key, parsed transform chain, and transform registry reference.
+   *
+   * Inputs:
+   * - `source`: provider key
+   * - `transforms`: parsed transform descriptors
+   * - `registry`: transform implementation map
+   */
   constructor(
     source: string,
     transforms: TransformDescriptor[],
@@ -76,6 +124,17 @@ export class Pipeline {
     this.registry = registry;
   }
 
+  /*
+   * Purpose:
+   * Execute the compiled pipeline against runtime context.
+   *
+   * Inputs:
+   * - `ctx`: footer runtime state
+   * - `templateCtx`: resolved provider data/rawData
+   *
+   * Returns:
+   * - `PipelineResult` including final text/value and transform trace
+   */
   run(ctx: FooterContextState, templateCtx: PipelineContext): PipelineResult {
     const rawValue = templateCtx.rawData[this.source];
     const text = templateCtx.data[this.source] ?? '';
@@ -133,19 +192,32 @@ export class Pipeline {
 
 // ── Parsing ──────────────────────────────────────────────────────────────────
 
-type TemplateSegment = { type: 'literal'; text: string } | { type: 'pipeline'; pipeline: Pipeline };
+type TemplateSegment =
+  | {
+      /* Discriminator for literal string chunk. */
+      type: 'literal';
 
-/**
- * Parse a template string into segments of literal text and compiled pipelines.
+      /* Static text copied directly into final output. */
+      text: string;
+    }
+  | {
+      /* Discriminator for compiled pipeline chunk. */
+      type: 'pipeline';
+
+      /* Executable pipeline for one `{provider | transform...}` expression. */
+      pipeline: Pipeline;
+    };
+
+/*
+ * Purpose:
+ * Parse template text into literal segments and compiled pipeline segments.
  *
- * Template syntax:
- *   literal text {provider | transform1('arg') | transform2(ref_key)} more text
+ * Inputs:
+ * - `template`: source text containing `{provider | ...}` expressions
+ * - `registry`: transform map used by compiled pipeline instances
  *
- * Args:
- *   Quoted  → literal:  'accent', "hello", '200'
- *   Numeric → literal:  42, 3.14
- *   Boolean → literal:  true, false
- *   Bare    → context ref: model_context_window resolves against context at runtime
+ * Returns:
+ * - Ordered `TemplateSegment[]`
  */
 export function parseTemplate(
   template: string,
@@ -157,7 +229,6 @@ export function parseTemplate(
   let match: RegExpExecArray | null;
 
   while ((match = re.exec(template)) !== null) {
-    // Literal text before this match
     if (match.index > lastIndex) {
       segments.push({ type: 'literal', text: template.slice(lastIndex, match.index) });
     }
@@ -174,7 +245,6 @@ export function parseTemplate(
     lastIndex = re.lastIndex;
   }
 
-  // Trailing literal
   if (lastIndex < template.length) {
     segments.push({ type: 'literal', text: template.slice(lastIndex) });
   }
@@ -182,11 +252,15 @@ export function parseTemplate(
   return segments;
 }
 
-/**
- * Split a transform chain string on `|` respecting parentheses and quotes.
+/*
+ * Purpose:
+ * Parse a transform chain string split on top-level pipe operators.
  *
- *   "humanise_percent | fg('accent') | clamp(0, 100)"
- *   → [ {name:"humanise_percent", args:[]}, {name:"fg", args:[{type:"literal",value:"accent"}]}, ... ]
+ * Inputs:
+ * - `chain`: raw transform chain text
+ *
+ * Returns:
+ * - Parsed transform descriptors
  */
 function parseTransformChain(chain: string): TransformDescriptor[] {
   const parts = splitOnPipe(chain);
@@ -203,8 +277,15 @@ function parseTransformChain(chain: string): TransformDescriptor[] {
   return transforms;
 }
 
-/**
- * Split string on `|` that are not inside parentheses or quotes.
+/*
+ * Purpose:
+ * Split on top-level `|` while respecting quotes and parenthesis nesting.
+ *
+ * Inputs:
+ * - `input`: transform-chain source text
+ *
+ * Returns:
+ * - Pipe-separated parts safe for per-transform parsing
  */
 function splitOnPipe(input: string): string[] {
   const parts: string[] = [];
@@ -215,7 +296,6 @@ function splitOnPipe(input: string): string[] {
   for (let i = 0; i < input.length; i++) {
     const ch = input[i];
 
-    // Quote tracking
     if ((ch === "'" || ch === '"') && (i === 0 || input[i - 1] !== '\\')) {
       if (quote === ch) {
         quote = null;
@@ -226,7 +306,6 @@ function splitOnPipe(input: string): string[] {
       continue;
     }
 
-    // Paren tracking (outside quotes)
     if (quote === null) {
       if (ch === '(') {
         depth++;
@@ -253,8 +332,15 @@ function splitOnPipe(input: string): string[] {
   return parts;
 }
 
-/**
- * Parse a single transform expression: `name` or `name(arg1, arg2)`
+/*
+ * Purpose:
+ * Parse a single transform expression (`name` or `name(arg1, arg2, ...)`).
+ *
+ * Inputs:
+ * - `expr`: one transform expression string
+ *
+ * Returns:
+ * - Descriptor or `null` when syntax is invalid
  */
 function parseTransformDescriptor(expr: string): TransformDescriptor | null {
   const match = expr.match(/^([A-Za-z_][\w-]*)(?:\((.*)\))?$/s);
@@ -269,20 +355,31 @@ function parseTransformDescriptor(expr: string): TransformDescriptor | null {
   };
 }
 
-/**
- * Parse transform arguments, splitting on `,` respecting quotes.
+/*
+ * Purpose:
+ * Parse and classify argument list tokens into literal/ref descriptors.
  *
- * Quoted values → literal (string)
- * Numbers       → literal (number)
- * true/false    → literal (boolean)
- * null          → literal (null)
- * Bare words    → context ref (resolved at runtime)
+ * Inputs:
+ * - `argsStr`: raw argument list text from `name(...)`
+ *
+ * Returns:
+ * - Ordered transform arguments
  */
 function parseTransformArgs(argsStr: string): TransformArg[] {
   const parts = splitOnComma(argsStr);
   return parts.map(classifyArg);
 }
 
+/*
+ * Purpose:
+ * Split on top-level commas while respecting quoted substrings.
+ *
+ * Inputs:
+ * - `input`: argument list text
+ *
+ * Returns:
+ * - Comma-separated argument tokens
+ */
 function splitOnComma(input: string): string[] {
   const parts: string[] = [];
   let current = '';
@@ -314,34 +411,48 @@ function splitOnComma(input: string): string[] {
   return parts;
 }
 
+/*
+ * Purpose:
+ * Classify one argument token as scalar literal or runtime context reference.
+ *
+ * Inputs:
+ * - `raw`: unclassified token text
+ *
+ * Returns:
+ * - `TransformArg` descriptor
+ */
 function classifyArg(raw: string): TransformArg {
   const trimmed = raw.trim();
 
-  // Quoted string → literal
   const quoted = trimmed.match(/^(["'])(.*)\1$/);
   if (quoted) return { type: 'literal', value: quoted[2] };
 
-  // Boolean → literal
   if (trimmed === 'true') return { type: 'literal', value: true };
   if (trimmed === 'false') return { type: 'literal', value: false };
 
-  // Null → literal
   if (trimmed === 'null') return { type: 'literal', value: null };
 
-  // Number → literal
   const num = Number(trimmed);
   if (!Number.isNaN(num) && Number.isFinite(num) && trimmed.length > 0) {
     return { type: 'literal', value: num };
   }
 
-  // Bare word → context reference
   return { type: 'ref', key: trimmed };
 }
 
 // ── Render helper ────────────────────────────────────────────────────────────
 
-/**
- * Execute pre-parsed template segments against a context.
+/*
+ * Purpose:
+ * Execute parsed template segments and concatenate final rendered output.
+ *
+ * Inputs:
+ * - `segments`: parsed literal/pipeline segment list
+ * - `ctx`: footer runtime state
+ * - `templateCtx`: resolved provider data/rawData
+ *
+ * Returns:
+ * - Final rendered string
  */
 export function renderSegments(
   segments: TemplateSegment[],
