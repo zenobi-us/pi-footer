@@ -1,0 +1,351 @@
+import type { FooterContextState } from "../types";
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+/** The resolved context data a pipeline reads from at runtime. */
+export type PipelineContext = {
+  data: Record<string, string>;
+  rawData: Record<string, unknown>;
+};
+
+export type TransformRecord = {
+  id: string;
+  input: { text: string; value: unknown };
+  output: { text: string; value: unknown };
+};
+
+export type PipelineState = {
+  text: string;
+  value: unknown;
+  source: string;
+  meta: Record<string, unknown>;
+  transforms: TransformRecord[];
+};
+
+export type PipelineResult = {
+  source: string;
+  initialValue: unknown;
+  finalValue: unknown;
+  text: string;
+  transforms: TransformRecord[];
+};
+
+/**
+ * A pipeline step receives immutable state + ambient context, returns new state.
+ *
+ * Convention:
+ *  - Read `state.value` for semantic data (numbers, objects, etc.)
+ *  - Read `state.text` for the current display string
+ *  - Read `state.meta` for data left by earlier steps
+ *  - Return a new state with updated text/value/meta
+ */
+export type PipelineStep = (
+  state: Readonly<PipelineState>,
+  ctx: FooterContextState,
+  ...args: unknown[]
+) => PipelineState;
+
+// ── Step descriptor (parsed from template) ───────────────────────────────────
+
+export type StepDescriptor = {
+  name: string;
+  args: StepArg[];
+};
+
+export type StepArg =
+  | { type: "literal"; value: unknown }
+  | { type: "ref"; key: string };
+
+// ── Pipeline class ───────────────────────────────────────────────────────────
+
+/**
+ * A compiled pipeline for a single template expression `{key | step | step}`.
+ *
+ * Construction is the parse/compile phase — done once per template.
+ * `run()` is the execute phase — called per render with fresh context.
+ */
+export class Pipeline {
+  constructor(
+    private source: string,
+    private steps: StepDescriptor[],
+    private registry: ReadonlyMap<string, PipelineStep>,
+  ) {}
+
+  run(ctx: FooterContextState, templateCtx: PipelineContext): PipelineResult {
+    const rawValue = templateCtx.rawData[this.source];
+    const text = templateCtx.data[this.source] ?? "";
+
+    let state: PipelineState = {
+      text,
+      value: rawValue,
+      source: this.source,
+      meta: {},
+      transforms: [],
+    };
+
+    for (const descriptor of this.steps) {
+      const step = this.registry.get(descriptor.name);
+      if (!step) {
+        console.warn(`Unknown pipeline step: ${descriptor.name}`);
+        continue;
+      }
+
+      const resolvedArgs = descriptor.args.map((arg) =>
+        arg.type === "literal"
+          ? arg.value
+          : (templateCtx.rawData[arg.key] ?? templateCtx.data[arg.key] ?? arg.key),
+      );
+
+      const input = { text: state.text, value: state.value };
+
+      try {
+        state = step(state, ctx, ...resolvedArgs);
+      } catch (error) {
+        console.error(`Pipeline step ${descriptor.name} failed:`, error);
+        continue;
+      }
+
+      state = {
+        ...state,
+        transforms: [
+          ...state.transforms,
+          {
+            id: descriptor.name,
+            input,
+            output: { text: state.text, value: state.value },
+          },
+        ],
+      };
+    }
+
+    return {
+      source: this.source,
+      initialValue: rawValue,
+      finalValue: state.value,
+      text: state.text,
+      transforms: state.transforms,
+    };
+  }
+}
+
+// ── Parsing ──────────────────────────────────────────────────────────────────
+
+type TemplateSegment =
+  | { type: "literal"; text: string }
+  | { type: "pipeline"; pipeline: Pipeline };
+
+/**
+ * Parse a template string into segments of literal text and compiled pipelines.
+ *
+ * Template syntax:
+ *   literal text {provider | step1('arg') | step2(ref_key)} more text
+ *
+ * Args:
+ *   Quoted  → literal:  'accent', "hello", '200'
+ *   Numeric → literal:  42, 3.14
+ *   Boolean → literal:  true, false
+ *   Bare    → context ref: model_context_window resolves against context at runtime
+ */
+export function parseTemplate(
+  template: string,
+  registry: ReadonlyMap<string, PipelineStep>,
+): TemplateSegment[] {
+  const segments: TemplateSegment[] = [];
+  const re = /\{\s*([\w-]+)(?:\s*\|\s*([^}]+))?\s*\}/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(template)) !== null) {
+    // Literal text before this match
+    if (match.index > lastIndex) {
+      segments.push({ type: "literal", text: template.slice(lastIndex, match.index) });
+    }
+
+    const source = match[1];
+    const filterChain = match[2];
+    const steps = filterChain ? parseFilterChain(filterChain) : [];
+
+    segments.push({
+      type: "pipeline",
+      pipeline: new Pipeline(source, steps, registry),
+    });
+
+    lastIndex = re.lastIndex;
+  }
+
+  // Trailing literal
+  if (lastIndex < template.length) {
+    segments.push({ type: "literal", text: template.slice(lastIndex) });
+  }
+
+  return segments;
+}
+
+/**
+ * Split a filter chain string on `|` respecting parentheses and quotes.
+ *
+ *   "humanise_percent | fg('accent') | clamp(0, 100)"
+ *   → [ {name:"humanise_percent", args:[]}, {name:"fg", args:[{type:"literal",value:"accent"}]}, ... ]
+ */
+function parseFilterChain(chain: string): StepDescriptor[] {
+  const parts = splitOnPipe(chain);
+  const steps: StepDescriptor[] = [];
+
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+
+    const descriptor = parseStepDescriptor(trimmed);
+    if (descriptor) steps.push(descriptor);
+  }
+
+  return steps;
+}
+
+/**
+ * Split string on `|` that are not inside parentheses or quotes.
+ */
+function splitOnPipe(input: string): string[] {
+  const parts: string[] = [];
+  let current = "";
+  let depth = 0;
+  let quote: "'" | '"' | null = null;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+
+    // Quote tracking
+    if ((ch === "'" || ch === '"') && (i === 0 || input[i - 1] !== "\\")) {
+      if (quote === ch) {
+        quote = null;
+      } else if (quote === null) {
+        quote = ch;
+      }
+      current += ch;
+      continue;
+    }
+
+    // Paren tracking (outside quotes)
+    if (quote === null) {
+      if (ch === "(") { depth++; current += ch; continue; }
+      if (ch === ")") { depth = Math.max(0, depth - 1); current += ch; continue; }
+
+      if (ch === "|" && depth === 0) {
+        parts.push(current);
+        current = "";
+        continue;
+      }
+    }
+
+    current += ch;
+  }
+
+  if (current) parts.push(current);
+  return parts;
+}
+
+/**
+ * Parse a single step expression: `name` or `name(arg1, arg2)`
+ */
+function parseStepDescriptor(expr: string): StepDescriptor | null {
+  const match = expr.match(/^([A-Za-z_][\w-]*)(?:\((.*)\))?$/s);
+  if (!match) return null;
+
+  const name = match[1];
+  const argsStr = match[2];
+
+  return {
+    name,
+    args: argsStr != null ? parseStepArgs(argsStr) : [],
+  };
+}
+
+/**
+ * Parse step arguments, splitting on `,` respecting quotes.
+ *
+ * Quoted values → literal (string)
+ * Numbers       → literal (number)
+ * true/false    → literal (boolean)
+ * null          → literal (null)
+ * Bare words    → context ref (resolved at runtime)
+ */
+function parseStepArgs(argsStr: string): StepArg[] {
+  const parts = splitOnComma(argsStr);
+  return parts.map(classifyArg);
+}
+
+function splitOnComma(input: string): string[] {
+  const parts: string[] = [];
+  let current = "";
+  let quote: "'" | '"' | null = null;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+
+    if ((ch === "'" || ch === '"') && (i === 0 || input[i - 1] !== "\\")) {
+      if (quote === ch) {
+        quote = null;
+      } else if (quote === null) {
+        quote = ch;
+      }
+      current += ch;
+      continue;
+    }
+
+    if (ch === "," && quote === null) {
+      parts.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += ch;
+  }
+
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+
+function classifyArg(raw: string): StepArg {
+  const trimmed = raw.trim();
+
+  // Quoted string → literal
+  const quoted = trimmed.match(/^(["'])(.*)\1$/);
+  if (quoted) return { type: "literal", value: quoted[2] };
+
+  // Boolean → literal
+  if (trimmed === "true") return { type: "literal", value: true };
+  if (trimmed === "false") return { type: "literal", value: false };
+
+  // Null → literal
+  if (trimmed === "null") return { type: "literal", value: null };
+
+  // Number → literal
+  const num = Number(trimmed);
+  if (!Number.isNaN(num) && Number.isFinite(num) && trimmed.length > 0) {
+    return { type: "literal", value: num };
+  }
+
+  // Bare word → context reference
+  return { type: "ref", key: trimmed };
+}
+
+// ── Render helper ────────────────────────────────────────────────────────────
+
+/**
+ * Execute pre-parsed template segments against a context.
+ */
+export function renderSegments(
+  segments: TemplateSegment[],
+  ctx: FooterContextState,
+  templateCtx: PipelineContext,
+): string {
+  let result = "";
+  for (const seg of segments) {
+    if (seg.type === "literal") {
+      result += seg.text;
+    } else {
+      result += seg.pipeline.run(ctx, templateCtx).text;
+    }
+  }
+  return result;
+}
