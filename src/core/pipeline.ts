@@ -63,11 +63,19 @@ export type StepArg = { type: 'literal'; value: unknown } | { type: 'ref'; key: 
  * `run()` is the execute phase — called per render with fresh context.
  */
 export class Pipeline {
+  private source: string;
+  private steps: StepDescriptor[];
+  private registry: ReadonlyMap<string, PipelineStep>;
+
   constructor(
-    private source: string,
-    private steps: StepDescriptor[],
-    private registry: ReadonlyMap<string, PipelineStep>
-  ) {}
+    source: string,
+    steps: StepDescriptor[],
+    registry: ReadonlyMap<string, PipelineStep>
+  ) {
+    this.source = source;
+    this.steps = steps;
+    this.registry = registry;
+  }
 
   run(ctx: FooterContextState, templateCtx: PipelineContext): PipelineResult {
     const rawValue = templateCtx.rawData[this.source];
