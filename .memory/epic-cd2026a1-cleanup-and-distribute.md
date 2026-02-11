@@ -2,8 +2,8 @@
 id: cd2026a1
 title: Cleanup and distribute
 created_at: 2026-02-11T20:49:00+10:30
-updated_at: 2026-02-11T20:49:00+10:30
-status: planning
+updated_at: 2026-02-11T22:00:27+10:30
+status: completed
 ---
 
 # Cleanup and distribute
@@ -24,3 +24,6 @@ Bring this extension to parity with the expected pi-mono footer surface by clean
 ## Dependencies
 - Access to `ExtensionContext` runtime fields available in current pi SDK version.
 - Agreement on fallback semantics (`-` vs empty string vs null) for unavailable values.
+
+## Closeout
+- Epic delivery complete; all planned phase/task work is finished and marked completed.

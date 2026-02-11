@@ -6,15 +6,25 @@ Composable footer for `pi` with provider-driven data and a compiled pipeline ren
 [
   [
     "{model_provider}.{model_name} [{model_context_window}:{model_context_used | humanise_percent | context_used_color}]",
+    "{path}",
     { "items": ["[{git_worktree_name}:{git_branch_name}]"], "align": "right" }
+  ],
+  [
+    {
+      "items": [
+        "ctx:{model_context_used_tokens | humanise_number} in:{usage_tokens_read | humanise_number} out:{usage_tokens_write | humanise_number} $:{usage_cost_usd | round(4)} mode:{model_thinking_mode} plan:{usage_plan}"
+      ],
+      "align": "right"
+    }
   ]
 ]
 ```
 
-renders: 
+renders:
 
 ```txt
-openai-codex.gpt-4.0 [200k:64%]                                        [my-worktree:main]
+openai-codex.gpt-4.0 [200k:64%] /mnt/Store/Projects/Mine/Github/pi-footer              [my-worktree:main]
+ctx:128,400 in:110,002 out:18,398 $:0.2321 mode:normal plan:pro
 ```
 
 
@@ -24,7 +34,7 @@ openai-codex.gpt-4.0 [200k:64%]                                        [my-workt
 - Context **providers** (data sources) that resolve values from the current state (e.g. model, git, time)
 - Context transforms that reshape provider values (e.g. humanise, colorize)
 - left/right alignment + flex growth
-- Built-in providers for model, git, cwd, time, and usage trackers
+- Built-in providers for model, git, cwd/path, and time
 - Debug command for inspecting pipeline execution
 - api to register custom providers and transforms from other extensions
 
@@ -82,11 +92,18 @@ If an unquoted ref key does not exist, it falls back to the raw token string.
 
 - `{time}` – current local time
 - `{cwd}` – current directory name
+- `{path}` – full current working directory path
 - `{model_name}` – active model id
 - `{model_provider}` – active model provider
 - `{model_context_used}` – context usage as number `0..100`
+- `{model_context_used_tokens}` – raw used context tokens
 - `{model_context_window}` – context window (e.g. `200k`)
 - `{model_thinking_level}` – current thinking level
+- `{model_thinking_mode}` – best-effort compatibility alias for thinking mode (`-` when unavailable)
+- `{usage_tokens_read}` – latest assistant read tokens (`input + cacheRead`)
+- `{usage_tokens_write}` – latest assistant write tokens (`output + cacheWrite`)
+- `{usage_cost_usd}` – cumulative branch/session assistant cost in USD
+- `{usage_plan}` – best-effort account plan/tier from runtime metadata (`-` when unavailable)
 
 ### Git
 
@@ -95,15 +112,6 @@ If an unquoted ref key does not exist, it falls back to the raw token string.
 - `{git_status}` (structured object)
 - `{recent_commits}` (structured object)
 
-### Usage tracking
-
-From tracker integration (auto-detected + per-platform), including:
-
-- `{usage_emoji}`
-- `{usage_platform}`
-- `{usage_quota_remaining}`
-- `{usage_quota_percent_used}`
-- `{anthropic_*}`, `{copilot_*}`, `{codex_*}` variants
 
 ---
 
@@ -138,17 +146,34 @@ From tracker integration (auto-detected + per-platform), including:
 
 Set in `services/config/defaults.ts` or override via `Config.template`.
 
+> Note: The built-in default template remains intentionally compact for backwards compatibility; the expanded example below shows how to opt into `path`, token usage, cost, and plan fields.
+
 Example:
 
 ```ts
 Config.template = [
   [
-    { items: ["[{git_worktree_name}:{git_branch_name}]"] },
+    '{path}',
     {
       items: [
         "{model_provider}.{model_name} [{model_context_window}:{model_context_used | humanise_percent | context_used_color}]",
+        "[{git_worktree_name}:{git_branch_name}]",
       ],
-      align: "right",
+      align: 'right',
+      separator: ' ',
+    },
+  ],
+  [
+    {
+      items: [
+        "ctx:{model_context_used_tokens | humanise_number}",
+        "in:{usage_tokens_read | humanise_number}",
+        "out:{usage_tokens_write | humanise_number}",
+        "$:{usage_cost_usd | round(4)}",
+        'mode:{model_thinking_mode}',
+        'plan:{usage_plan}',
+      ],
+      align: 'right',
     },
   ],
 ];

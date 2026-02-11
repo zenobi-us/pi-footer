@@ -2,8 +2,8 @@
 id: cd2026c1
 title: Remove stale usage README claims
 created_at: 2026-02-11T20:49:00+10:30
-updated_at: 2026-02-11T20:49:00+10:30
-status: todo
+updated_at: 2026-02-11T21:25:30+10:30
+status: completed
 epic_id: cd2026a1
 phase_id: cd2026b1
 assigned_to: 2243019232301634
@@ -27,7 +27,7 @@ N/A
 README provider docs accurately match implemented providers.
 
 ## Actual Outcome
-Pending.
+Updated `README.md` to remove stale usage tracking claims (`usage_*` and `{anthropic_*}`, `{copilot_*}`, `{codex_*}` variants) and aligned the built-in providers summary to only currently implemented providers from `src/context/*`.
 
 ## Lessons Learned
-Pending.
+Keep provider docs directly tied to the registered provider list to avoid drift.

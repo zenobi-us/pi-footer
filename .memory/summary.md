@@ -2,14 +2,21 @@
 
 ## Current Epic
 
-- [cleanup and distribute](./epic-cd2026a1-cleanup-and-distribute.md) (`cd2026a1`)
+- None active.
+
+## Completed Epics
+
+- [cleanup and distribute](./epic-cd2026a1-cleanup-and-distribute.md) (`cd2026a1`) — completed (closed).
 
 ## Active Phases
 
-- [footer parity and doc cleanup](./phase-cd2026b1-footer-parity-and-doc-cleanup.md) (`cd2026b1`)
+- None active.
+
+## Completed Phases
+
+- [footer parity and doc cleanup](./phase-cd2026b1-footer-parity-and-doc-cleanup.md) (`cd2026b1`) — completed (closed).
 
 ## Next Milestones
 
-- Complete README cleanup task (`cd2026c1`).
-- Implement provider expansion tasks (`cd2026c2`..`cd2026c5`).
-- Finalize templates/docs alignment (`cd2026c6`).
+- Cleanup epic closeout complete.
+- No remaining tasks in this epic.

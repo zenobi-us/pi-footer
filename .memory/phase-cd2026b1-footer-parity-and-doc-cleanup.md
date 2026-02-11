@@ -2,8 +2,8 @@
 id: cd2026b1
 title: Footer parity and doc cleanup
 created_at: 2026-02-11T20:49:00+10:30
-updated_at: 2026-02-11T20:49:00+10:30
-status: todo
+updated_at: 2026-02-11T22:00:27+10:30
+status: completed
 epic_id: cd2026a1
 start_criteria: Epic approved and task files created.
 end_criteria: All linked tasks completed, verified, and documented.
@@ -32,4 +32,4 @@ Define and execute the concrete work needed to align extension footer capabiliti
 - Completion order: c1 -> c2/c3 -> c4/c5 -> c6.
 
 ## Next Steps
-- Execute tasks in order and validate with `/context-providers` plus build/lint commands.
+- Phase closeout complete. No remaining execution tasks.
