@@ -2,7 +2,6 @@ name: Pr
 
 on:
   pull_request:
-  pull_request_target:
   workflow_dispatch:
 
 concurrency:
@@ -20,7 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup Tooling
         uses: jdx/mise-action@d6e32c1796099e0f1f3ac741c220a8b7eae9e5dd
@@ -35,3 +34,12 @@ jobs:
           mise run lint
           mise run test
           mise run build
+
+      - name: Validate Schema
+        id: validate-schema
+        run: |
+          mise run generate-schema
+          git diff --exit-code -- config.schema.json || {
+            echo "Schema has changed. Please run 'mise run generate-schema' and commit the updated schema." >> $GITHUB_STEP_SUMMARY
+            exit 1; 
+          }
