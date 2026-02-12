@@ -1,4 +1,4 @@
-import { FooterTemplate } from '../../types';
+import { UnresolvedTemplate } from './schema';
 
 /*
  * Default footer template used when consumers do not override `Config.template`.
@@ -18,7 +18,7 @@ import { FooterTemplate } from '../../types';
  *  bg: "selectedBg" | "userMessageBg" | "customMessageBg" | "toolPendingBg" | "toolSuccessBg" | "toolErrorBg"
  *
  */
-export const DEFAULT_TEMPLATE: FooterTemplate = [
+export const DEFAULT_TEMPLATE: UnresolvedTemplate = [
   ['{path | bg("accent") | fg("muted") }', '{git_branch_name | fg("accent")}'],
   [
     {

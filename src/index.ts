@@ -1,8 +1,8 @@
 import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
-import { registerContextProvidersCommand } from './cmds/context-providers.ts';
-import { registerPipelineDebugCommand } from './cmds/pipeline-debug.ts';
+import { registerPiFooterCommand } from './cmds/pi-footer.ts';
 import { Footer } from './footer.ts';
 import { Config } from './services/config';
+
 import './context/colors.ts';
 import './context/cwd.ts';
 import './context/git.ts';
@@ -57,8 +57,7 @@ export { Footer };
  */
 export default function piFooterExtension(pi: ExtensionAPI): void {
   /* Register interactive inspection/debug commands for the footer runtime. */
-  registerContextProvidersCommand(pi, Footer);
-  registerPipelineDebugCommand(pi, Footer);
+  registerPiFooterCommand(pi, Footer);
 
   /* Attach footer rendering lifecycle to a specific session context. */
   const attach = (ctx: ExtensionContext): void => {
@@ -76,7 +75,7 @@ export default function piFooterExtension(pi: ExtensionAPI): void {
           tui.requestRender();
         },
 
-        /* Render current configured footer template for the active width. */
+        /* Render using manager-owned read path; legacy Config writes remain compatibility-only. */
         render(width: number) {
           return Footer.render(pi, ctx, theme, width, {
             template: Config.template,

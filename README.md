@@ -1,23 +1,43 @@
-# pi-footer extension
+# pi-footer
 
-Composable footer for `pi` with provider-driven data and a compiled pipeline renderer.
+A composable footer for [`pi`](https://pi.dev) with provider-driven data and a compiled pipeline renderer.
+
+
+- Template based footer rendering with dynamic data from context providers.
+- Context **providers** (data sources) that resolve values from the current state (e.g. model, git, time)
+- Context transforms that reshape provider values (e.g. humanise, colorize)
+- left/right alignment + flex growth
+- Built-in providers for model, git, cwd/path, and time
+- Debug command for inspecting pipeline execution
+- api to register custom providers and transforms from other extensions
+
+## Usage
+
+```sh
+pi install @zenobi-us/pi-footer
+```
+
+Then configure your template in `~/.pi/agent/pi-footer.json`
 
 ```json
-[
-  [
-    "{model_provider}.{model_name} [{model_context_window}:{model_context_used | humanise_percent | context_used_color}]",
-    "{path}",
-    { "items": ["[{git_worktree_name}:{git_branch_name}]"], "align": "right" }
-  ],
-  [
-    {
-      "items": [
-        "ctx:{model_context_used_tokens | humanise_number} in:{usage_tokens_read | humanise_number} out:{usage_tokens_write | humanise_number} $:{usage_cost_usd | round(4)} mode:{model_thinking_mode} plan:{usage_plan}"
-      ],
-      "align": "right"
-    }
+{
+  "$schema": "https://raw.githubusercontent.com/zenobi-us/pi-footer/main/config.schema.json",
+  "template": [
+    [
+      "{model_provider}.{model_name} [{model_context_window}:{model_context_used | humanise_percent | context_used_color}]",
+      "{path}",
+      { "items": ["[{git_worktree_name}:{git_branch_name}]"], "align": "right" }
+    ],
+    [
+      {
+        "items": [
+          "ctx:{model_context_used_tokens | humanise_number} in:{usage_tokens_read | humanise_number} out:{usage_tokens_write | humanise_number} $:{usage_cost_usd | round(4)} mode:{model_thinking_mode} plan:{usage_plan}"
+        ],
+        "align": "right"
+      }
+    ]
   ]
-]
+}
 ```
 
 renders:
@@ -29,15 +49,6 @@ ctx:128,400 in:110,002 out:18,398 $:0.2321 mode:normal plan:pro
 
 
 ## What this extension provides
-
-- Template based footer rendering with dynamic data from context providers.
-- Context **providers** (data sources) that resolve values from the current state (e.g. model, git, time)
-- Context transforms that reshape provider values (e.g. humanise, colorize)
-- left/right alignment + flex growth
-- Built-in providers for model, git, cwd/path, and time
-- Debug command for inspecting pipeline execution
-- api to register custom providers and transforms from other extensions
-
 ---
 
 ## Architecture (provider → transform → transform)
@@ -157,33 +168,38 @@ Set in `services/config/defaults.ts` or override via `Config.template`.
 
 Example:
 
+`~/.pi/agent/pi-footer.json`
+
 ```ts
-Config.template = [
-  [
-    '{path}',
-    {
-      items: [
-        "{model_provider}.{model_name} [{model_context_window}:{model_context_used | humanise_percent | context_used_color}]",
-        "[{git_worktree_name}:{git_branch_name}]",
-      ],
-      align: 'right',
-      separator: ' ',
-    },
-  ],
-  [
-    {
-      items: [
-        "ctx:{model_context_used_tokens | humanise_number}",
-        "in:{usage_tokens_read | humanise_number}",
-        "out:{usage_tokens_write | humanise_number}",
-        "$:{usage_cost_usd | round(4)}",
-        'mode:{model_thinking_mode}',
-        'plan:{usage_plan}',
-      ],
-      align: 'right',
-    },
-  ],
-];
+{
+  "$schema": "https://raw.githubusercontent.com/zenobi-us/pi-footer/main/config.schema.json",
+  "template": [
+    [
+      '{path}',
+      {
+        items: [
+          "{model_provider}.{model_name} [{model_context_window}:{model_context_used | humanise_percent | context_used_color}]",
+          "[{git_worktree_name}:{git_branch_name}]",
+        ],
+        align: 'right',
+        separator: ' ',
+      },
+    ],
+    [
+      {
+        items: [
+          "ctx:{model_context_used_tokens | humanise_number}",
+          "in:{usage_tokens_read | humanise_number}",
+          "out:{usage_tokens_write | humanise_number}",
+          "$:{usage_cost_usd | round(4)}",
+          'mode:{model_thinking_mode}',
+          'plan:{usage_plan}',
+        ],
+        align: 'right',
+      },
+    ],
+  ]
+}
 ```
 
 Supported object item fields:
@@ -195,7 +211,34 @@ Supported object item fields:
 
 ---
 
+## JSON Schema
+
+The config schema is published as a JSON Schema document at:
+
+- `https://raw.githubusercontent.com/zenobi-us/pi-footer/main/config.schema.json`
+
+You can also use the normalized/internal shape schema at:
+
+- `https://raw.githubusercontent.com/zenobi-us/pi-footer/main/resolved-config.schema.json`
+
+Schemas are generated from `src/services/config/schema.ts` via:
+
+```bash
+mise run generate-schema
+```
+
+---
+
 ## Extension API usage
+
+Providing more context values and transforms is a common use case for other extensions. 
+
+For example: 
+
+- a project management extension might want to provide current task/issue info from the active branch or project directory.
+- a cost-tracking extension might want to provide more detailed cost breakdowns or projections based on current usage patterns.
+- a system monitoring extension might want to provide resource usage stats or alerts.
+- a subagent extension might want to track how many subagents are currently active and provide that as context.
 
 ```ts
 import { Footer } from "@zenobi-us/pi-footer";
@@ -228,11 +271,13 @@ export default function YourCustomPiValuesExtension (pi) {
 
 ## Commands
 
-- `/pi-footer providers` – list registered providers + transforms with metadata (source, dependencies, etc)
-- `/pi-footer debug-transform {expr}` – inspect pipeline transform history
+- `/pi-footer` – show command help
+- `/pi-footer providers` – show a scrollable list of registered context providers
+- `/pi-footer debug {expr}` – inspect template pipeline execution for an expression
+- `/pi-footer reload` – reload `~/.pi/agent/pi-footer.json` and rerender footer
 
 Example:
 
 ```txt
-/pi-footer debug-transform {model_context_used | humanise_percent | context_used_color}
+/pi-footer debug {model_context_used | humanise_percent | context_used_color}
 ```

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["template"],
+  "properties": {
+    "template": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "required": ["items"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {}
+              },
+              "template": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ]
+              },
+              "separator": {
+                "type": "string"
+              },
+              "flexGrow": {
+                "type": "boolean"
+              },
+              "align": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "left"
+                  },
+                  {
+                    "type": "string",
+                    "const": "right"
+                  }
+                ],
+                "$id": "TemplateItemAlignment"
+              }
+            },
+            "$id": "TemplateItem",
+            "additionalProperties": false
+          },
+          {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "required": ["items"],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {}
+                    },
+                    "template": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      ]
+                    },
+                    "separator": {
+                      "type": "string"
+                    },
+                    "flexGrow": {
+                      "type": "boolean"
+                    },
+                    "align": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "left"
+                        },
+                        {
+                          "type": "string",
+                          "const": "right"
+                        }
+                      ],
+                      "$id": "TemplateItemAlignment"
+                    }
+                  },
+                  "$id": "TemplateItem",
+                  "additionalProperties": false
+                }
+              ]
+            }
+          }
+        ],
+        "$id": "UnresolvedTemplateRow"
+      },
+      "$id": "UnresolvedTemplate"
+    }
+  },
+  "$id": "Config",
+  "additionalProperties": true
+}
