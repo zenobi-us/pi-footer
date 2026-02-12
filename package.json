@@ -2,6 +2,12 @@
   "name": "@zenobius/pi-footer",
   "version": "0.0.2",
   "description": "A customisable footer component for the Pi Coding Agent interface.",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "footer"
+  ],
   "author": {
     "name": "Zenobius Jiricek",
     "email": "airtonix@users.noreply.github.com"
