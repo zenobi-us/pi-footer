@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.0](https://github.com/zenobi-us/pi-footer/compare/v0.0.2...v0.1.0) (2026-02-12)
+
+
+### Features
+
+* **pi-footer:** unify slash commands under /pi-footer ([cf801f6](https://github.com/zenobi-us/pi-footer/commit/cf801f60781dbea8ec29181d778c1d41bb889414))
+
+
+### Bug Fixes
+
+* **config:** update default footer template and remove stale watch task ([1b28903](https://github.com/zenobi-us/pi-footer/commit/1b28903017e5d2497a7a9bfd9ddd11ba1df841c7))
+
 ## 0.0.2 (2026-02-12)
 
 
