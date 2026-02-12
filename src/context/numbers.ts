@@ -45,14 +45,45 @@ const humanise_amount: PipelineTransform = (state) => {
   return { ...state, text: Math.round(value).toString() };
 };
 
-/* Transform: round numeric value and format using locale separators. */
+/** Transform: format numeric value as currency with fixed 2 decimal places and optional symbol (default: '$'). */
+const humanise_currency: PipelineTransform = (state, _ctx, symbol = '$') => {
+  const value = state.value;
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { ...state, text: '--' };
+  }
+
+  return { ...state, text: `${symbol}${value.toFixed(2)}` };
+};
+
+/* Transform: round numeric value and format using suffixes (K/M/B) for thousands/millions/billions. For smaller values, output plain digits. Example outputs:
+ * 532 => "532"
+ * 1,234 => "1.2K"
+ * 56,789 => "56.8K"
+ * 1,234,567 => "1.2M"
+ * 9,876,543,210 => "9.9B"
+ * */
 const humanise_number: PipelineTransform = (state) => {
   const value = state.value;
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return { ...state, text: '--' };
   }
 
-  return { ...state, text: Math.round(value).toLocaleString() };
+  let text: string = state.text || '';
+  switch (true) {
+    case value >= 1_000_000_000:
+      text = `${(value / 1_000_000_000).toFixed(1)}B`;
+      break;
+    case value >= 1_000_000:
+      text = `${(value / 1_000_000).toFixed(1)}M`;
+      break;
+    case value >= 1_000:
+      text = `${(value / 1_000).toFixed(1)}K`;
+      break;
+    default:
+      text = Math.round(value).toString();
+  }
+
+  return { ...state, text };
 };
 
 /* Transform: format numeric value using fixed decimal places. */
@@ -85,5 +116,6 @@ Footer.registerContextTransform('humanise_percent', humanise_percent);
 Footer.registerContextTransform('humanise_percentage', humanise_percent);
 Footer.registerContextTransform('humanise_amount', humanise_amount);
 Footer.registerContextTransform('humanise_number', humanise_number);
+Footer.registerContextTransform('humanise_currency', humanise_currency);
 Footer.registerContextTransform('round', round);
 Footer.registerContextTransform('clamp', clamp);

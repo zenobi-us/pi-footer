@@ -9,17 +9,22 @@ import { FooterTemplate } from '../../types';
  * - numbers.ts/model.ts transforms: `humanise_percent`, `context_used_color`, `thinking_level_icons`
  */
 export const DEFAULT_TEMPLATE: FooterTemplate = [
+  ['{path | fg("muted")}', '{git_branch_name | fg("accent")}'],
   [
-    '{path | fg("muted")}',
-    '{git_branch_name | fg("accent")}',
-    '{"words" | fg("error")}',
+    {
+      items: [
+        '{usage_tokens_write | humanise_number }',
+        '{usage_tokens_read | humanise_number }',
+        '{usage_cost_usd | humanise_currency }',
+        '{usage_plan | fg("accent")}',
+        '{model_context_used | humanise_percent(100) | context_used_color}/{model_context_window}',
+      ],
+    },
     {
       items: [
         "🧠 {model_thinking_level | thinking_level_icons('unicode')}",
         '{model_provider | fg("accent")}',
         '{model_name | fg("accent")}',
-        '{model_context_window}',
-        '{model_context_used | humanise_percent(100) | context_used_color}',
       ],
       // with emdot
       separator: ' · ',
