@@ -33,13 +33,13 @@
   "dependencies": {
     "@mariozechner/pi-coding-agent": "~0.52.9",
     "@mariozechner/pi-tui": "~0.52.9",
-    "@types/nconf": "^0.10.7",
     "env-paths": "^4.0.0",
     "envdir": "^1.4.0",
     "nconf": "^0.13.0",
     "typebox": "^1.0.81"
   },
   "devDependencies": {
+    "@types/nconf": "^0.10.7",
     "@eslint/js": "~9.39.1",
     "@mariozechner/pi-ai": "~0.52.9",
     "@types/node": "~20.11.5",
