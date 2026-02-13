@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/zenobi-us/pi-footer/compare/v0.1.0...v0.1.1) (2026-02-13)
+
+
+### Bug Fixes
+
+* **ci:** setup and install when running build ([476b146](https://github.com/zenobi-us/pi-footer/commit/476b14643f1d4a889c7a8b7819ffdd39adfbe608))
+
 ## [0.1.0](https://github.com/zenobi-us/pi-footer/compare/v0.0.2...v0.1.0) (2026-02-12)
 
 
