@@ -1,7 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["template"],
+  "required": [
+    "template"
+  ],
   "properties": {
     "template": {
       "type": "array",
@@ -12,7 +14,9 @@
           },
           {
             "type": "object",
-            "required": ["items"],
+            "required": [
+              "items"
+            ],
             "properties": {
               "items": {
                 "type": "array",
@@ -63,7 +67,9 @@
                 },
                 {
                   "type": "object",
-                  "required": ["items"],
+                  "required": [
+                    "items"
+                  ],
                   "properties": {
                     "items": {
                       "type": "array",

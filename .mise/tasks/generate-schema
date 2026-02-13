@@ -2,14 +2,12 @@
 // vim: set ft=typescript :
 //MISE description="Generate JSON schema files from TypeBox config schemas"
 //MISE sources=["src/services/config/schema.ts"]
-//MISE outputs=["dist/config.schema.json", "dist/resolved-config.schema.json"]
+//MISE outputs=["config.schema.json"]
 
 import { mkdir } from 'node:fs/promises';
 import { ConfigSchema } from '../../src/services/config/schema.ts';
 
 const jsonSchemaDraft = 'https://json-schema.org/draft/2020-12/schema';
-
-await mkdir('./dist', { recursive: true });
 
 await Bun.write(
   './config.schema.json',
