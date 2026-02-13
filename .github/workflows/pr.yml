@@ -34,6 +34,7 @@ jobs:
           mise run lint
           mise run test
           mise run build
+          mise run attw
 
       - name: Validate Schema
         id: validate-schema
