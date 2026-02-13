@@ -1,6 +1,7 @@
 import { truncateToWidth, visibleWidth } from '@mariozechner/pi-tui';
-import { Template, TemplateContext } from './core/template';
-import { FooterInstance, FooterTemplate, FooterTemplateObjectItem } from './types';
+import { Template } from './core/template.ts';
+import type { TemplateContext } from './core/template.ts';
+import type { FooterInstance, FooterTemplate, FooterTemplateObjectItem } from './types.ts';
 
 type RenderedTemplateItem = {
   /*
@@ -48,8 +49,10 @@ function renderTemplateItem(
 
   const separator = entry.separator ?? rootSeparator;
   const renderedChildren = entry.items
-    .map((child) => renderTemplateItem(template, context, child, rootSeparator)?.text ?? '')
-    .filter((value) => value.trim().length > 0);
+    .map((child: string | FooterTemplateObjectItem) =>
+      renderTemplateItem(template, context, child, rootSeparator)?.text ?? ''
+    )
+    .filter((value: string) => value.trim().length > 0);
 
   const text = renderedChildren.join(separator).replace(/\s+/g, ' ').trim();
   if (!text) return null;

@@ -1,4 +1,4 @@
-import { UnresolvedTemplate } from './schema';
+import type { UnresolvedTemplate } from './schema.ts';
 
 /*
  * Default footer template used when consumers do not override `Config.template`.

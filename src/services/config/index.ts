@@ -2,7 +2,7 @@ import nconf from 'nconf';
 import path from 'path';
 
 import { homedir } from 'os';
-import { DEFAULT_TEMPLATE } from './defaults';
+import { DEFAULT_TEMPLATE } from './defaults.ts';
 import type { ResolvedConfig } from './schema.ts';
 import { normalizeConfig } from './schema.ts';
 

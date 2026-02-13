@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
 import { registerPiFooterCommand } from './cmds/pi-footer.ts';
 import { Footer } from './footer.ts';
-import { Config } from './services/config';
+import { Config } from './services/config/index.ts';
 
 import './context/colors.ts';
 import './context/cwd.ts';

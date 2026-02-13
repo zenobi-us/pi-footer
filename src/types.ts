@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
-import type { PipelineTransform } from './core/pipeline';
-import { Template } from './services/config/schema';
+import type { PipelineTransform } from './core/pipeline.ts';
+import type { Template, TemplateItem } from './services/config/schema.ts';
 
 export type FooterContextValue =
   | string
@@ -11,6 +11,9 @@ export type FooterContextValue =
   | null
   | undefined;
 //
+export type FooterTemplate = Template;
+export type FooterTemplateObjectItem = TemplateItem;
+
 export type FooterContextState = {
   /*
    * Global extension API for runtime integrations (events, commands, settings).

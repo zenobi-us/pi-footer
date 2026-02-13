@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import type { FooterContextState } from '../types';
+import type { FooterContextState } from '../types.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

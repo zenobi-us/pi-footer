@@ -1,5 +1,6 @@
-import { ContextValueProvider, FooterContextState } from '../types';
-import { PipelineContext, PipelineTransform, parseTemplate, renderSegments } from './pipeline';
+import type { ContextValueProvider, FooterContextState } from '../types.ts';
+import { parseTemplate, renderSegments } from './pipeline.ts';
+import type { PipelineContext, PipelineTransform } from './pipeline.ts';
 
 export type TemplateContext = PipelineContext & {
   /*
