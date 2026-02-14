@@ -4,20 +4,20 @@
 
 set -euo pipefail
 
-analysis_json=$(attw --pack . --format json)
+analysis_json=$(attw --profile esm-only --pack . --format json)
 
 echo "$analysis_json" | jq .
 
 if [ "$(echo "$analysis_json" | jq -r '.analysis.types')" != "true" ]; then
-  echo "❌ arethetypeswrong: published package is missing type definitions"
-  exit 1
+	echo "❌ arethetypeswrong: published package is missing type definitions"
+	exit 1
 fi
 
 problem_count=$(echo "$analysis_json" | jq '.analysis.problems // [] | length')
 
 if [ "$problem_count" -gt 0 ]; then
-  echo "❌ arethetypeswrong: found $problem_count type resolution problem(s)"
-  exit 1
+	echo "❌ arethetypeswrong: found $problem_count type resolution problem(s)"
+	exit 1
 fi
 
 echo "✓ arethetypeswrong check passed"

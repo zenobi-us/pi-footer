@@ -1,7 +1,13 @@
 /* eslint-disable no-unused-vars */
-import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
+import type {
+  ExtensionAPI,
+  ExtensionCommandContext,
+  ExtensionContext,
+} from '@mariozechner/pi-coding-agent';
 import type { PipelineTransform } from './core/pipeline.ts';
 import type { Template, TemplateItem } from './services/config/schema.ts';
+import { TemplateService } from './core/template.ts';
+import { EventService } from './core/events.ts';
 
 export type FooterContextValue =
   | string
@@ -40,6 +46,15 @@ export type ContextValueProvider = (
 ) => FooterContextValue | FooterContextValue[];
 
 export interface FooterInstance {
+  template: TemplateService;
+
+  events: EventService;
+
+  subCommands: Map<
+    string,
+    { description: string; callback: (args: string[], ctx: ExtensionCommandContext) => void }
+  >;
+
   /*
    * Render the configured footer template into one or more fixed-width lines.
    */
@@ -55,13 +70,31 @@ export interface FooterInstance {
     ]
   ) => string[];
 
+  registerSubCommand: (
+    name: string,
+    description: string,
+    cmd: (args: string[], ctx: ExtensionCommandContext) => Promise<void> | void
+  ) => void;
+
   /*
    * Register a provider available as `{name}` inside footer templates.
    */
-  registerContextValue: (...args: [string, ContextValueProvider]) => void;
+  registerContextValue: (...args: [string, ContextValueProvider]) => () => void;
+
+  /*
+   * Unregister a provider previously added via `registerContextValue`.
+   * optional, since you can use the returned unregister function from `registerContextValue` instead for more granular cleanup.
+   */
+  unregisterContextValue: (...args: [string]) => void;
 
   /*
    * Register a transform available as `{provider | transformName(...)}`.
    */
-  registerContextTransform: (...args: [string, PipelineTransform]) => void;
+  registerContextTransform: (...args: [string, PipelineTransform]) => () => void;
+
+  /*
+   * Unregister a transform previously added via `registerContextTransform`.
+   * optional, since you can use the returned unregister function from `registerContextTransform` instead for more granular cleanup.
+   */
+  unregisterContextTransform: (...args: [string]) => void;
 }

@@ -23,8 +23,8 @@ export const DEFAULT_TEMPLATE: UnresolvedTemplate = [
   [
     {
       items: [
-        '↖️{usage_tokens_write | humanise_number }',
-        '↘️{usage_tokens_read | humanise_number }',
+        '↖️ {usage_tokens_write | humanise_number }',
+        '↘️ {usage_tokens_read | humanise_number }',
         '{usage_cost_usd | humanise_currency }',
         '{usage_plan | fg("accent")}',
         '{model_context_used | humanise_percent(100) | context_used_color}/{model_context_window}',

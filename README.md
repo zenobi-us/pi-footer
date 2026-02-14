@@ -3,21 +3,46 @@
 A composable footer for [`pi`](https://pi.dev) with provider-driven data and a compiled pipeline renderer.
 
 
-- Template based footer rendering with dynamic data from context providers.
-- Context **providers** (data sources) that resolve values from the current state (e.g. model, git, time)
-- Context transforms that reshape provider values (e.g. humanise, colorize)
-- left/right alignment + flex growth
-- Built-in providers for model, git, cwd/path, and time
-- Debug command for inspecting pipeline execution
-- api to register custom providers and transforms from other extensions
+- Template-based footer rendering with dynamic data from context providers.
+- Context **providers** (data sources) that resolve values from the current state (e.g. model, git, time).
+- Context transforms that reshape provider values (e.g. humanise, colorize).
+- Left/right alignment + flex growth.
+- Built-in providers for model, git, cwd/path, and time.
+- Debug command for inspecting pipeline execution.
+- API to register custom providers and transforms from other extensions.
 
 ## Usage
 
 ```sh
-pi install @zenobi-us/pi-footer
+pi install @zenobius/pi-footer
 ```
 
-Then configure your template in `~/.pi/agent/pi-footer.json`
+## Quick start (60 seconds)
+
+Create `~/.pi/agent/pi-footer.json`:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/zenobi-us/pi-footer/main/config.schema.json",
+  "template": [
+    [
+      "{path}",
+      {
+        "items": ["{model_provider}.{model_name}"],
+        "align": "right"
+      }
+    ]
+  ]
+}
+```
+
+Then run:
+
+```txt
+/pi-footer reload
+```
+
+## Advanced template example
 
 ```json
 {
@@ -40,18 +65,16 @@ Then configure your template in `~/.pi/agent/pi-footer.json`
 }
 ```
 
-renders:
+Renders:
 
 ```txt
 openai-codex.gpt-4.0 [200k:64%] /mnt/Store/Projects/Mine/Github/pi-footer              [my-worktree:main]
 ctx:128,400 in:110,002 out:18,398 $:0.2321 mode:normal plan:pro
 ```
 
-
-## What this extension provides
----
-
 ## Architecture (provider → transform → transform)
+
+> You can skip this section unless you are building custom providers/transforms.
 
 Each `{ ... }` expression in a template is compiled into a pipeline.
 
@@ -170,34 +193,34 @@ Example:
 
 `~/.pi/agent/pi-footer.json`
 
-```ts
+```json
 {
   "$schema": "https://raw.githubusercontent.com/zenobi-us/pi-footer/main/config.schema.json",
   "template": [
     [
-      '{path}',
+      "{path}",
       {
-        items: [
+        "items": [
           "{model_provider}.{model_name} [{model_context_window}:{model_context_used | humanise_percent | context_used_color}]",
-          "[{git_worktree_name}:{git_branch_name}]",
+          "[{git_worktree_name}:{git_branch_name}]"
         ],
-        align: 'right',
-        separator: ' ',
-      },
+        "align": "right",
+        "separator": " "
+      }
     ],
     [
       {
-        items: [
+        "items": [
           "ctx:{model_context_used_tokens | humanise_number}",
           "in:{usage_tokens_read | humanise_number}",
           "out:{usage_tokens_write | humanise_number}",
           "$:{usage_cost_usd | round(4)}",
-          'mode:{model_thinking_mode}',
-          'plan:{usage_plan}',
+          "mode:{model_thinking_mode}",
+          "plan:{usage_plan}"
         ],
-        align: 'right',
-      },
-    ],
+        "align": "right"
+      }
+    ]
   ]
 }
 ```
@@ -241,29 +264,24 @@ For example:
 - a subagent extension might want to track how many subagents are currently active and provide that as context.
 
 ```ts
-import { Footer } from "@zenobi-us/pi-footer";
+import { Footer } from '@zenobius/pi-footer';
 
-export default function YourCustomPiValuesExtension (pi) {
-
+export default function yourCustomPiValuesExtension(): void {
   // Add provider
-  Footer.registerContextValue("custom_value", ({ ctx }) => ctx.cwd.length);
+  Footer.registerContextValue('custom_value', ({ ctx }) => ctx.cwd.length);
 
   // Add pipeline transform
-  Footer.registerContextTransform("custom_format", (state) => {
-    if (state.source !== "custom_value") return state;
+  Footer.registerContextTransform('custom_format', (state) => {
+    if (state.source !== 'custom_value') return state;
 
     const value = `len=${state.value}`;
 
-    return ({
+    return {
       ...state,
-      transforms: [...state.transforms, {
-        id: "custom_format",
-        input: state.value,
-        output: value,
-      }],
-      text: value
-    }))
-  };
+      value,
+      text: value,
+    };
+  });
 }
 ```
 
@@ -275,9 +293,11 @@ export default function YourCustomPiValuesExtension (pi) {
 - `/pi-footer providers` – show a scrollable list of registered context providers
 - `/pi-footer debug {expr}` – inspect template pipeline execution for an expression
 - `/pi-footer reload` – reload `~/.pi/agent/pi-footer.json` and rerender footer
+- `/pi-footer <subcommand> [args]` – run extension-registered subcommands (e.g. `quota`)
 
 Example:
 
 ```txt
 /pi-footer debug {model_context_used | humanise_percent | context_used_color}
+/pi-footer quota
 ```

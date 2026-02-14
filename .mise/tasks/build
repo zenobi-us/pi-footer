@@ -1,14 +1,62 @@
-#!/usr/bin/env bash
-#MISE description="Build the project"
-#MISE depends=["setup"]
-#MISE sources=["src/**/*", "tsconfig.build.json"]
-#MISE outputs=["dist/index.js", "dist/index.d.ts"]
+#!/usr/bin/env bun
+// vim: set ft=typescript :
+//MISE description="Build the project"
+//MISE depends=["setup"]
+//MISE sources=["src/**/*", "contrib/**/*", "tsconfig.base.json", "tsconfig.build.json"]
+//MISE outputs=["extensions/index.js", "dist/index.d.ts"]
 
-rm -rf dist
+/// <reference types="bun-types" />
 
-bun build ./src/index.ts --outdir dist --target bun --format esm --packages external \
-	--external '@mariozechner/pi-coding-agent' \
-	--external '@mariozechner/pi-tui' \
-	--external '@mariozechner/pi-ai'
+import { dirname } from 'node:path';
 
-tsc --project tsconfig.build.json
+// allows us to use top-level await.
+export {};
+
+const common: Pick<Bun.BuildConfig, 'target' | 'format' | 'packages' | 'external'> = {
+  target: 'bun',
+  format: 'esm',
+  packages: 'external',
+  external: ['@mariozechner/pi-coding-agent', '@mariozechner/pi-tui', '@mariozechner/pi-ai'],
+};
+
+console.log('Cleaning output directories...');
+await Bun.$`rm -rf ./extensions ./dist`;
+
+console.log('Building main extension...');
+await Bun.build({
+  entrypoints: ['./src/index.ts'],
+  outdir: 'extensions',
+  naming: {
+    entry: 'pi-footer.js',
+  },
+  ...common,
+});
+
+console.log('Emitting declaration files...');
+await Bun.$`tsc --project tsconfig.build.json`;
+
+const extrasGlob = new Bun.Glob('contrib/*/index.ts');
+for await (const extra of extrasGlob.scan()) {
+  const entry = extra;
+  const source = dirname(entry);
+  const name = source.split('/').pop()!;
+
+  console.log(`Building extra '${name}'...`);
+  await Bun.build({
+    entrypoints: [extra],
+    root: dirname(extra),
+    outdir: `extensions`,
+    naming: {
+      entry: `pi-footer-contrib-${name}.js`,
+    },
+    ...common,
+    external: [
+      ...(common.external || []),
+      '@zenobius/pi-footer'
+    ],
+  });
+}
+
+
+
+console.log('Build complete!');

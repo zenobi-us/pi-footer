@@ -1,10 +1,10 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": false,
     "declaration": true,
     "emitDeclarationOnly": true,
-    "outDir": "dist",
+    "outDir": "extensions/types",
     "rootDir": "src"
   },
   "include": ["src/**/*.ts"]

@@ -15,8 +15,8 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./extensions/types/index.d.ts",
+      "default": "./extensions/pi-footer.js"
     }
   },
   "repository": {
@@ -27,17 +27,19 @@
     "access": "public"
   },
   "files": [
-    "dist",
+    "extensions/",
     "README.md"
   ],
   "pi": {
     "extensions": [
-      "./dist/index.js"
+      "./extensions/pi-footer.js",
+      "./extensions/pi-footer-contrib-platform-quotas.js"
     ]
   },
   "dependencies": {
     "@mariozechner/pi-coding-agent": "~0.52.9",
     "@mariozechner/pi-tui": "~0.52.9",
+    "emittery": "^1.2.0",
     "env-paths": "^4.0.0",
     "envdir": "^1.4.0",
     "nconf": "^0.13.0",

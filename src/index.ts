@@ -62,18 +62,23 @@ export default function piFooterExtension(pi: ExtensionAPI): void {
   /* Attach footer rendering lifecycle to a specific session context. */
   const attach = (ctx: ExtensionContext): void => {
     ctx.ui.setFooter((tui, theme, footerData) => {
-      const unsubscribeBranch = footerData.onBranchChange(() => tui.requestRender());
+      const invalidate = (): void => {
+        tui.requestRender();
+      };
+
+      const unsubscribeBranch = footerData.onBranchChange(invalidate);
+
+      const unsubscribeInvalidate = Footer.events.on('invalidate', invalidate);
 
       return {
         /* Cleanup branch listener when footer instance is disposed. */
         dispose() {
           unsubscribeBranch();
+          unsubscribeInvalidate();
         },
 
         /* Request a fresh render for external invalidation triggers. */
-        invalidate() {
-          tui.requestRender();
-        },
+        invalidate,
 
         /* Render using manager-owned read path; legacy Config writes remain compatibility-only. */
         render(width: number) {

@@ -2,17 +2,16 @@ import type { ExtensionAPI, ExtensionCommandContext } from '@mariozechner/pi-cod
 import { reloadConfig } from '../services/config/index.ts';
 import type { FooterInstance } from '../types.ts';
 
-const SUBCOMMANDS = ['providers', 'debug', 'reload', 'help'] as const;
-type PiFooterSubcommand = (typeof SUBCOMMANDS)[number];
+import { parseTemplate } from '../core/pipeline.ts';
+import type { TemplateService } from '../core/template.ts';
+
+const BUILTIN_SUBCOMMANDS = ['providers', 'debug', 'reload', 'help'] as const;
+type BuiltinSubcommand = (typeof BUILTIN_SUBCOMMANDS)[number];
 
 type ParsedCommand = {
-  subcommand: PiFooterSubcommand;
+  subcommand: string;
   args: string;
-  unknown?: string;
 };
-
-import { parseTemplate } from '../core/pipeline.ts';
-import type { Template } from '../core/template.ts';
 
 /* Render unknown values safely for debug output lines. */
 function formatValue(value: unknown): string {
@@ -53,6 +52,12 @@ function trimOuterQuotes(input: string): string {
   return trimmed;
 }
 
+function parseArgv(input: string): string[] {
+  const trimmed = input.trim();
+  if (!trimmed) return [];
+  return trimmed.split(/\s+/);
+}
+
 /*
  * Open a pipeline debugger for a template expression.
  */
@@ -62,7 +67,7 @@ export async function runPipelineDebug(
   args: string,
   ctx: ExtensionCommandContext
 ): Promise<void> {
-  const ft = footer as FooterInstance & { template: Template };
+  const ft = footer as FooterInstance & { template: TemplateService };
 
   let expression = trimOuterQuotes((args ?? '').trim());
   if (!expression && ctx.hasUI) {
@@ -199,26 +204,26 @@ function parseCommand(rawArgs: string): ParsedCommand {
     return { subcommand: 'help', args: '' };
   }
 
-  if (token === 'providers' || token === 'debug' || token === 'reload' || token === 'help') {
-    return { subcommand: token, args };
-  }
-
-  return { subcommand: 'help', args: '', unknown: token };
+  return { subcommand: token, args };
 }
 
 function commandHelpText(): string {
   return [
     'pi-footer commands',
     '',
-    'Usage:',
+    'Built-in:',
     '  /pi-footer                Show this help',
     '  /pi-footer providers      List registered context providers',
     '  /pi-footer debug <expr>   Debug a footer template expression',
     '  /pi-footer reload         Reload config and rerender footer',
     '',
+    'Extension subcommands:',
+    '  /pi-footer <name> [args]  Run a subcommand registered via Footer.registerSubCommand(...)',
+    '',
     'Examples:',
     '  /pi-footer providers',
     '  /pi-footer debug "{model_context_used | humanise_percent | context_used_color}"',
+    '  /pi-footer quota',
     '  /pi-footer reload',
   ].join('\n');
 }
@@ -240,11 +245,7 @@ export function registerPiFooterCommand(pi: ExtensionAPI, footer: FooterInstance
     handler: async (args, ctx) => {
       const parsed = parseCommand(args);
 
-      if (parsed.unknown && ctx.hasUI) {
-        ctx.ui.notify(`Unknown subcommand: ${parsed.unknown}`, 'warning');
-      }
-
-      switch (parsed.subcommand) {
+      switch (parsed.subcommand as BuiltinSubcommand) {
         case 'providers':
           await showContextProviders(footer, ctx);
           return;
@@ -271,8 +272,29 @@ export function registerPiFooterCommand(pi: ExtensionAPI, footer: FooterInstance
           return;
 
         case 'help':
-        default:
           await showHelp(ctx);
+          return;
+
+        default: {
+          const custom = footer.subCommands.get(parsed.subcommand);
+          if (!custom) {
+            if (ctx.hasUI) {
+              ctx.ui.notify(`Unknown subcommand: ${parsed.subcommand}`, 'warning');
+            }
+            await showHelp(ctx);
+            return;
+          }
+
+          try {
+            await custom.callback(parseArgv(parsed.args), ctx);
+          } catch (error) {
+            if (ctx.hasUI) {
+              const message = error instanceof Error ? error.message : String(error);
+              ctx.ui.notify(`Failed to run /pi-footer ${parsed.subcommand}: ${message}`, 'error');
+            }
+          }
+          return;
+        }
       }
     },
   });

@@ -40,7 +40,7 @@ type CompiledTemplate = ReturnType<typeof parseTemplate>;
  * Purpose:
  * Manage provider/transform registries, template compilation cache, and rendering.
  */
-export class Template {
+export class TemplateService {
   /*
    * Public registry of provider functions keyed by placeholder name.
    */
