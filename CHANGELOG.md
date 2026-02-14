@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/zenobi-us/pi-footer/compare/v0.1.1...v0.2.0) (2026-02-14)
+
+
+### Features
+
+* **platform-quotas:** add quota tracker contrib extension ([b0ff2e5](https://github.com/zenobi-us/pi-footer/commit/b0ff2e5fb83ebc05ee4d12a5b5d469e9b3140cd7))
+* **subscription:** add subscription contrib extension ([8f23d08](https://github.com/zenobi-us/pi-footer/commit/8f23d0852cf9d252fa9f63dd8313bd716fa62e4c))
+
+
+### Bug Fixes
+
+* **build:** emit declaration files to dist ([41146d5](https://github.com/zenobi-us/pi-footer/commit/41146d58b25556879c60e5862247cb5d7a305193))
+
 ## [0.1.1](https://github.com/zenobi-us/pi-footer/compare/v0.1.0...v0.1.1) (2026-02-13)
 
 
