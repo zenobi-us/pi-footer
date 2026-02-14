@@ -33,12 +33,15 @@
   "pi": {
     "extensions": [
       "./extensions/pi-footer.js",
-      "./extensions/pi-footer-contrib-platform-quotas.js"
+      "./extensions/pi-footer-subscription.js"
     ]
   },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*"
+  },
   "dependencies": {
-    "@mariozechner/pi-coding-agent": "~0.52.9",
-    "@mariozechner/pi-tui": "~0.52.9",
+    "@marckrenn/pi-sub-core": "^1.0.5",
     "emittery": "^1.2.0",
     "env-paths": "^4.0.0",
     "envdir": "^1.4.0",
@@ -46,6 +49,9 @@
     "typebox": "^1.0.81"
   },
   "devDependencies": {
+    "@marckrenn/pi-sub-shared": "^1.0.5",
+    "@mariozechner/pi-coding-agent": "~0.52.9",
+    "@mariozechner/pi-tui": "~0.52.9",
     "@arethetypeswrong/cli": "^0.18.2",
     "@eslint/js": "~9.39.1",
     "@mariozechner/pi-ai": "~0.52.9",

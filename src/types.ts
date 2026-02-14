@@ -9,14 +9,6 @@ import type { Template, TemplateItem } from './services/config/schema.ts';
 import { TemplateService } from './core/template.ts';
 import { EventService } from './core/events.ts';
 
-export type FooterContextValue =
-  | string
-  | number
-  | boolean
-  | Record<string, unknown>
-  | null
-  | undefined;
-//
 export type FooterTemplate = Template;
 export type FooterTemplateObjectItem = TemplateItem;
 
@@ -41,9 +33,7 @@ export type ContextTransformProvider<A = unknown> = (
   ...args: [FooterContextState, unknown, ...A[]]
 ) => string;
 
-export type ContextValueProvider = (
-  ...args: [FooterContextState]
-) => FooterContextValue | FooterContextValue[];
+export type ContextValueProvider<T = unknown> = (...args: [FooterContextState]) => T | T[];
 
 export interface FooterInstance {
   template: TemplateService;
@@ -79,7 +69,7 @@ export interface FooterInstance {
   /*
    * Register a provider available as `{name}` inside footer templates.
    */
-  registerContextValue: (...args: [string, ContextValueProvider]) => () => void;
+  registerContextValue: <T>(...args: [string, ContextValueProvider<T>]) => () => void;
 
   /*
    * Unregister a provider previously added via `registerContextValue`.
